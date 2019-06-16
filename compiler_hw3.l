@@ -32,74 +32,74 @@ id			{letter}+({letter}|{digit})*
 %%
 
  /* Arithmetic */
-"+"     { yylval.string_val = "+"; CONCAT; return ADD; }
-"-" 	{ yylval.string_val = "-"; CONCAT; return SUB; }
-"*" 	{ yylval.string_val = "*"; CONCAT; return MUL; }
-"/" 	{ yylval.string_val = "/"; CONCAT; return DIV; }
-"%"     { yylval.string_val = "%"; CONCAT; return MOD; }
-"++"    { yylval.string_val = "++"; CONCAT; return INC; }
-"--"    { yylval.string_val = "--"; CONCAT; return DEC; }
+"+"     { yylval.atom.string_val = "+"; CONCAT; return ADD; }
+"-" 	{ yylval.atom.string_val = "-"; CONCAT; return SUB; }
+"*" 	{ yylval.atom.string_val = "*"; CONCAT; return MUL; }
+"/" 	{ yylval.atom.string_val = "/"; CONCAT; return DIV; }
+"%"     { yylval.atom.string_val = "%"; CONCAT; return MOD; }
+"++"    { yylval.atom.string_val = "++"; CONCAT; return INC; }
+"--"    { yylval.atom.string_val = "--"; CONCAT; return DEC; }
 
  /* Relational */
-">"		{ yylval.string_val = ">"; CONCAT; return MT; }
-"<"		{ yylval.string_val = "<"; CONCAT; return LT; }
-">="	{ yylval.string_val = ">="; CONCAT; return MTE; }
-"<="	{ yylval.string_val = "<="; CONCAT; return LTE; }
-"=="	{ yylval.string_val = "=="; CONCAT; return EQ; }
-"!="	{ yylval.string_val = "!="; CONCAT; return NE; }
+">"		{ yylval.atom.string_val = ">"; CONCAT; return MT; }
+"<"		{ yylval.atom.string_val = "<"; CONCAT; return LT; }
+">="	{ yylval.atom.string_val = ">="; CONCAT; return MTE; }
+"<="	{ yylval.atom.string_val = "<="; CONCAT; return LTE; }
+"=="	{ yylval.atom.string_val = "=="; CONCAT; return EQ; }
+"!="	{ yylval.atom.string_val = "!="; CONCAT; return NE; }
 
  /* Assignment */
 "="		{ CONCAT; return ASGN; }
-"+="	{ yylval.string_val = "+="; CONCAT; return ADDASGN; }
-"-="	{ yylval.string_val = "-="; CONCAT; return SUBASGN; }
-"*="	{ yylval.string_val = "*="; CONCAT; return MULASGN; }
-"/="	{ yylval.string_val = "/="; CONCAT; return DIVASGN; }
-"%="	{ yylval.string_val = "%="; CONCAT; return MODASGN; }
+"+="	{ yylval.atom.string_val = "+="; CONCAT; return ADDASGN; }
+"-="	{ yylval.atom.string_val = "-="; CONCAT; return SUBASGN; }
+"*="	{ yylval.atom.string_val = "*="; CONCAT; return MULASGN; }
+"/="	{ yylval.atom.string_val = "/="; CONCAT; return DIVASGN; }
+"%="	{ yylval.atom.string_val = "%="; CONCAT; return MODASGN; }
 
  /* Logical */
-"&&"	{ yylval.string_val = "&&"; CONCAT; return AND; }
-"||"	{ yylval.string_val = "||"; CONCAT; return OR; }
-"!"		{ yylval.string_val = "!"; CONCAT; return NOT; }
+"&&"	{ yylval.atom.string_val = "&&"; CONCAT; return AND; }
+"||"	{ yylval.atom.string_val = "||"; CONCAT; return OR; }
+"!"		{ yylval.atom.string_val = "!"; CONCAT; return NOT; }
 
  /* Delimiters */
-"("		{ yylval.string_val = "("; CONCAT; return LB; }
-")"		{ yylval.string_val = ")"; CONCAT; return RB; }
-"{"		{ yylval.string_val = "{"; CONCAT; return LCB; }
-"}"		{ yylval.string_val = "}"; CONCAT; return RCB; }
-"["		{ yylval.string_val = "["; CONCAT; return LSB; }
-"]"		{ yylval.string_val = "]"; CONCAT; return RSB; }
-","		{ yylval.string_val = ","; CONCAT; return COMMA; }
+"("		{ yylval.atom.string_val = "("; CONCAT; return LB; }
+")"		{ yylval.atom.string_val = ")"; CONCAT; return RB; }
+"{"		{ yylval.atom.string_val = "{"; CONCAT; return LCB; }
+"}"		{ yylval.atom.string_val = "}"; CONCAT; return RCB; }
+"["		{ yylval.atom.string_val = "["; CONCAT; return LSB; }
+"]"		{ yylval.atom.string_val = "]"; CONCAT; return RSB; }
+","		{ yylval.atom.string_val = ","; CONCAT; return COMMA; }
 
  /* Print Keywords */	
-"print"		{ yylval.string_val = yytext; CONCAT; return PRINT; }
+"print"		{ yylval.atom.string_val = yytext; CONCAT; return PRINT; }
 
  /* Condition and Loop Keywords */
-"if"		{ yylval.string_val = yytext; CONCAT; return IF; }
-"else"		{ yylval.string_val = yytext; CONCAT; return ELSE; }
-"for"		{ yylval.string_val = yytext; CONCAT; return FOR; }
-"while"		{ yylval.string_val = yytext; CONCAT; return WHILE; }
+"if"		{ yylval.atom.string_val = yytext; CONCAT; return IF; }
+"else"		{ yylval.atom.string_val = yytext; CONCAT; return ELSE; }
+"for"		{ yylval.atom.string_val = yytext; CONCAT; return FOR; }
+"while"		{ yylval.atom.string_val = yytext; CONCAT; return WHILE; }
 
  /* Declaration Keywords */
-"void"		{ CONCAT; yylval.string_val = "void"; return VOID; }
-"int"		{ CONCAT; yylval.string_val = "int"; return INT; }
-"float"  	{ CONCAT; yylval.string_val = "float"; return FLOAT; }
-"string"  	{ CONCAT; yylval.string_val = "string"; return STRING; }
-"bool"  	{ CONCAT; yylval.string_val = "bool"; return BOOL; }
+"void"		{ CONCAT; yylval.atom.string_val = "void"; return VOID; }
+"int"		{ CONCAT; yylval.atom.string_val = "int"; return INT; }
+"float"  	{ CONCAT; yylval.atom.string_val = "float"; return FLOAT; }
+"string"  	{ CONCAT; yylval.atom.string_val = "string"; return STRING; }
+"bool"  	{ CONCAT; yylval.atom.string_val = "bool"; return BOOL; }
 
  /* boolean Keywords */
-"TRUE"      { yylval.string_val = "true"; CONCAT; return TRUE; }
-"FALSE"     { yylval.string_val = "false"; CONCAT; return FALSE; }
+"true"      { yylval.atom.string_val = "true"; CONCAT; return TRUE; }
+"false"     { yylval.atom.string_val = "false"; CONCAT; return FALSE; }
 
-"return"    { yylval.string_val = yytext; CONCAT; return RET; }
+"return"    { yylval.atom.string_val = yytext; CONCAT; return RET; }
 
  /* String Constant */
 \"				        { BEGIN STRING_STATE; CONCAT; }
 <STRING_STATE>\"		{ BEGIN INITIAL; CONCAT; }
-<STRING_STATE>[^"]*		{ yylval.string_val = yytext; CONCAT; return S_CONST; }
+<STRING_STATE>[^"]*		{ yylval.atom.string_val = yytext; CONCAT; return S_CONST; }
 
  /* Number Constant */
-{integer}	{ yylval.i_val = atoi(yytext); CONCAT; return I_CONST; }
-{float}	    { yylval.f_val = atof(yytext); CONCAT; return F_CONST; }
+{integer}	{ yylval.atom.i_val = atoi(yytext); CONCAT; return I_CONST; }
+{float}	    { yylval.atom.f_val = atof(yytext); CONCAT; return F_CONST; }
 
  /* C type Comment */
 "/*"				{ BEGIN COMMENT; CONCAT; return START_COMMENT; }
@@ -121,7 +121,7 @@ id			{letter}+({letter}|{digit})*
 
  /* Variable ID */
  {id}       { 
- 				yylval.string_val = strdup(yytext); 
+ 				yylval.atom.string_val = strdup(yytext); 
 				//printf("lex:%s\n", yylval.string_val); 
 				CONCAT; 
 				return ID; 
@@ -129,7 +129,7 @@ id			{letter}+({letter}|{digit})*
 
  /* others */
 
-[;]         { yylval.string_val = yytext; CONCAT; return SEMICOLON; }
+[;]         { yylval.atom.string_val = yytext; CONCAT; return SEMICOLON; }
 [\n]        { 
 				//CONCAT; 
 				if(buf[0] == '\0') printf("%d:\n", yylineno-1);

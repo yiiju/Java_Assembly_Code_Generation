@@ -65,7 +65,9 @@ struct func_table
 }implement_func_table[30];
 int func_flag;
 
-int lookup_register_num(char[])
+int lookup_register_num(char[]);
+char* lookup_type(char[]);
+int register_site;
 
 %}
 
@@ -73,16 +75,17 @@ int lookup_register_num(char[])
  * nonterminal and token type
  */
 %union {
-    int i_val;
-    double f_val;
-    char* string_val;
-//	bool bool_val;
+	struct atom {
+   		int i_val;
+    	double f_val;
+    	char* string_val;
+		char type[30];
+	}atom;
 }
 
 /* Token without return */
 %token INT FLOAT STRING BOOL VOID
-%token ADD SUB MUL DIV MOD INC DEC
-%token MT LT MTE LTE EQ NE
+%token ADD SUB MUL DIV MOD
 %token ASGN ADDASGN SUBASGN MULASGN DIVASGN MODASGN
 %token AND OR NOT
 %token LB RB LCB RCB LSB RSB COMMA
@@ -93,19 +96,23 @@ int lookup_register_num(char[])
 %token START_COMMENT END_COMMENT CPLUS_COMMENT
 
 /* Token with return, which need to sepcify type */
-%token <i_val> I_CONST
-%token <f_val> F_CONST
-%token <string_val> S_CONST
-%token <string_val> TRUE
-%token <string_val> FALSE
+%token <atom> I_CONST
+%token <atom> F_CONST
+%token <atom> S_CONST
+%token <atom> TRUE
+%token <atom> FALSE
+%token <atom> INC 
+%token <atom> DEC
+%token <atom> MT LT MTE LTE EQ NE
 
 /* Nonterminal with return, which need to sepcify type */
-%type <string_val> type
-%type <string_val> ID INT FLOAT BOOL STRING VOID
-%type <string_val> func_end
-%type <string_val> SEMICOLON
-%type <string_val> initializer
-%type <f_val> factor mul_expression_stat add_expression_stat expression_stat
+%type <atom> type
+%type <atom> ID INT FLOAT BOOL STRING VOID
+%type <atom> func_end
+%type <atom> SEMICOLON
+%type <atom> initializer
+%type <atom> factor mul_expression_stat add_expression_stat expression_stat arithmetic_postfix
+%type <atom> relational
 
 /* Yacc will start at this nonterminal */
 %start program
@@ -151,7 +158,7 @@ return_stat
 func
 	: func_parameter RB func_end 
 	{
-		if(!strcmp($3, ";")) {
+		if(!strcmp($3.string_val, ";")) {
 			table_num--;
 			func_flag = 1;
 		}
@@ -159,7 +166,7 @@ func
 	}
 	| RB func_end
 	{
-		if(!strcmp($2, ";")) {
+		if(!strcmp($2.string_val, ";")) {
 			table_num--;
 			func_flag = 1;
 		}
@@ -181,38 +188,38 @@ func_end
 declaration
     : type ID ASGN initializer SEMICOLON 
 	{
-		int index = lookup_symbol($2, "insert"); 
+		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
-			insert_symbol($2, "variable", $1, "\0", index);
+			insert_symbol($2.string_val, "variable", $1.string_val, "\0", index);
 			// global declaration
 			if(table_num == 0) {
 				char type_descriptor[20];
-				if(!strcmp($1, "bool")) {
-					strcpy(type_descriptor,"Z");
+				if(!strcmp($1.string_val, "bool")) {
+					strcpy(type_descriptor,"F");
 					int booltype;
-					if(!strcmp($4, "true")) booltype = 1;
+					if(!strcmp($4.string_val, "true")) booltype = 1.0;
 					else booltype = 0;
-    				fprintf(file, ".field public static %s %s = %d\n", $2, type_descriptor, booltype);
+    				fprintf(file, ".field public static %s %s = %d\n", $2.string_val, type_descriptor, booltype);
 				}
-				else if(!strcmp($1, "string")) {
+				else if(!strcmp($1.string_val, "string")) {
 					strcpy(type_descriptor,"Ljava/lang/String;");
-					char *strconst = strtok($4, "\"");
-    				fprintf(file, ".field public static %s %s = \"%s\"\n", $2, type_descriptor, strconst);
+					char *strconst = strtok($4.string_val, "\"");
+    				fprintf(file, ".field public static %s %s = \"%s\"\n", $2.string_val, type_descriptor, strconst);
 				}
 			}
 			// local declaration
 			else {
-				if(!strcmp($1, "bool")) {
+				if(!strcmp($1.string_val, "bool")) {
 					int booltype;
-					if(!strcmp($4, "true")) booltype = 1;
+					if(!strcmp($4.string_val, "true")) booltype = 1;
 					else booltype = 0;
-					fprintf(file, "    ldc %d", booltype);
-					fprintf(file, "    istore %d", index);
+					fprintf(file, "    ldc %d\n", booltype);
+					fprintf(file, "    istore %d\n", index);
 				}
-				else if(!strcmp($1, "string")) {
-					char *strconst = strtok($4, "\"");
-					fprintf(file, "    ldc %s", strconst);
-					fprintf(file, "    astore %d", index);
+				else if(!strcmp($1.string_val, "string")) {
+					char *strconst = strtok($4.string_val, "\"");
+					fprintf(file, "    ldc %s\n", strconst);
+					fprintf(file, "    astore %d\n", index);
 				}
 			}
 		}
@@ -220,53 +227,39 @@ declaration
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Redeclared variable ");
-			strcat(sem_error_msg, $2);
+			strcat(sem_error_msg, $2.string_val);
 		}
 	}
     | type ID SEMICOLON
 	{
-		int index = lookup_symbol($2, "insert"); 
+		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
-			insert_symbol($2, "variable", $1, "\0", index);
+			insert_symbol($2.string_val, "variable", $1.string_val, "\0", index);
 			// global declaration
 			if(table_num == 0) {
 				char type_descriptor[20];
-				if(!strcmp($1, "int")) {
-					strcpy(type_descriptor, "I");
-    				fprintf(file, ".field public static %s %s\n", $2, type_descriptor);
-				}
-				else if(!strcmp($1, "float")) {
-					strcpy(type_descriptor, "F");
-    				fprintf(file, ".field public static %s %s\n", $2, type_descriptor);
-				}
-				else if(!strcmp($1, "bool")) {
-					strcpy(type_descriptor, "Z");
-    				fprintf(file, ".field public static %s %s\n", $2, type_descriptor);
-				}
-				else if(!strcmp($1, "string")) {
+				if(!strcmp($1.string_val, "string")) {
 					strcpy(type_descriptor, "Ljava/lang/String;");
-    				fprintf(file, ".field public static %s %s\n", $2, type_descriptor);
+    				fprintf(file, ".field public static %s %s\n", $2.string_val, type_descriptor);
+				}
+				else {
+					// float, int, bool
+					strcpy(type_descriptor, "F");
+    				fprintf(file, ".field public static %s %s\n", $2.string_val, type_descriptor);
 				}
 			}
 			// local declaration
 			else {
 				char type_descriptor[20];
     			fprintf(file, "    ldc 0\n");
-				if(!strcmp($1, "int")) {
-					strcpy(type_descriptor, "I");
-    				fprintf(file, "    istore 0\n");
-				}
-				else if(!strcmp($1, "float")) {
-					strcpy(type_descriptor, "F");
-    				fprintf(file, "    fstore 0\n");
-				}
-				else if(!strcmp($1, "bool")) {
-					strcpy(type_descriptor, "I");
-					fprintf(file, "    istore 0\n");
-				}
-				else if(!strcmp($1, "string")) {
+				if(!strcmp($1.string_val, "string")) {
 					strcpy(type_descriptor, "Ljava/lang/String;");
 					fprintf(file, "    astore 0\n");
+				}
+				else {
+					// float, int, bool
+					strcpy(type_descriptor, "F");
+    				fprintf(file, "    fstore 0\n");
 				}
 			}
 		}
@@ -274,28 +267,38 @@ declaration
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Redeclared variable ");
-			strcat(sem_error_msg, $2);
+			strcat(sem_error_msg, $2.string_val);
 		}
 	}
 	| type ID ASGN expression_stat SEMICOLON
 	{
-		int index = lookup_symbol($2, "insert"); 
+		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
-			insert_symbol($2, "variable", $1, "\0", index);
+			insert_symbol($2.string_val, "variable", $1.string_val, "\0", index);
 			// global declaration
 			if(table_num == 0) {
-				
+				char type_descriptor[30];
+				// float, int
+				strcpy(type_descriptor, "F");
+				fprintf(file, ".field public static %s %s = %f\n", $2.string_val, type_descriptor, $4.f_val);	
 			}
 			// local declaration
 			else {
-				
+				int regnum = lookup_register_num($2.string_val);
+				if(!strcmp($1.string_val, "string")) {
+					fprintf(file, "    astore %d\n", regnum);
+				}
+				else {
+					// float, int, bool
+					fprintf(file, "    fstore %d\n", regnum);
+				}
 			}
 		}
 		else {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Redeclared variable ");
-			strcat(sem_error_msg, $2);
+			strcat(sem_error_msg, $2.string_val);
 		}
 	}
 ;
@@ -316,7 +319,7 @@ declaration_func
 		*/
 	} func
 	{
-		int index = lookup_symbol($2, "insert"); 
+		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
 			char attr[100];
 			bzero(attr, 100);
@@ -333,17 +336,17 @@ declaration_func
 				}
 				else break;
 			}
-			insert_symbol($2, "function", $1, attr, index);
+			insert_symbol($2.string_val, "function", $1.string_val, attr, index);
 		}
 		if(func_flag == 1) {
-			index = lookup_func_table($2);
+			index = lookup_func_table($2.string_val);
 			if(index == 2) {
 				error_flag = 1;
 				bzero(sem_error_msg, 100);
 				strcat(sem_error_msg, "Redeclared function ");
-				strcat(sem_error_msg, $2);
+				strcat(sem_error_msg, $2.string_val);
 			}
-			else insert_func_table($2);
+			else insert_func_table($2.string_val);
 			func_flag = 0;
 		}
 	}
@@ -352,16 +355,16 @@ declaration_func
 func_parameter
 	: func_parameter COMMA type ID
 	{
-		int index = lookup_symbol($4, "insert"); 
+		int index = lookup_symbol($4.string_val, "insert"); 
 		if(index != -1) {
-			insert_symbol($4, "parameter", $3, "\0", index);
+			insert_symbol($4.string_val, "parameter", $3.string_val, "\0", index);
 		}
 	}
 	| type ID
 	{
-		int index = lookup_symbol($2, "insert"); 
+		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
-			insert_symbol($2, "parameter", $1, "\0", index);
+			insert_symbol($2.string_val, "parameter", $1.string_val, "\0", index);
 		}
 	}
 ;
@@ -379,38 +382,47 @@ const
 expression
 	: ID asgn expression_stat SEMICOLON
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 	}
 	| ID arithmetic_postfix SEMICOLON
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
+		}
+	}
+	| arithmetic_postfix ID SEMICOLON
+	{
+		if(lookup_symbol($2.string_val, "semantic") == -1) {
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Undeclared variable ");
+			strcat(sem_error_msg, $2.string_val);
 		}
 	}
 	| ID LB func_call RB 
 	{ 
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared function ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 	} SEMICOLON
 	| ID LB RB SEMICOLON
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared function ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 	}
 	| SEMICOLON
@@ -418,20 +430,82 @@ expression
 
 expression_stat
 	: expression_stat relational add_expression_stat
+	{
+		int flag = 0;
+		if(!strcmp($2.string_val, ">")) {
+			if($1.f_val > $3.f_val) flag = 1;
+		}
+		else if(!strcmp($2.string_val, "<")) {
+			if($1.f_val < $3.f_val) flag = 1;
+		}
+		else if(!strcmp($2.string_val, ">=")) {
+			if($1.f_val >= $3.f_val) flag = 1;
+		}
+		else if(!strcmp($2.string_val, "<=")) {
+			if($1.f_val <= $3.f_val) flag = 1;
+		}
+		else if(!strcmp($2.string_val, "==")) {
+			if($1.f_val == $3.f_val) flag = 1;
+		}
+		else if(!strcmp($2.string_val, "!=")) {
+			if($1.f_val != $3.f_val) flag = 1;
+		}
+		if(flag == 1) $$.f_val = 1.0;
+		else $$.f_val = 0.0;
+		strcpy($$.type, "bool");
+	}
 	| add_expression_stat
+	{
+		$$ = $1;
+	}
 ;
 
 add_expression_stat
 	: add_expression_stat ADD mul_expression_stat
+	{
+		fprintf(file, "    fadd\n");
+		$$.f_val = -1.0;
+	}
 	| add_expression_stat SUB mul_expression_stat
+	{
+		fprintf(file, "    fsub\n");
+		$$.f_val = -1.0;
+	}
 	| mul_expression_stat
+	{
+		$$ = $1;
+	}
 ;
 
 mul_expression_stat
 	: mul_expression_stat MUL factor
+	{
+		fprintf(file, "    fmul\n");
+		$$.f_val = -1.0;
+	}
 	| mul_expression_stat DIV factor
+	{
+		fprintf(file, "    fdiv\n");
+		$$.f_val = -1.0;
+	}
 	| mul_expression_stat MOD factor
+	{
+		char type1[30], type2[30];
+		strcpy(type1, $1.type);
+		strcpy(type2, $3.type);
+		if(!strcmp(type1, "int") && !strcmp(type2, "int")) {
+			fprintf(file, "    frem\n");
+		}
+		else {
+			// semantic error
+			// Modulo operator (%) with floating point operands
+		}
+		$$.f_val = -1.0;
+	}
 	| factor
+	{
+		$$ = $1;
+	}
 ;
 
 factor
@@ -439,98 +513,166 @@ factor
 	{
 		// local declaration
 		if(table_num != 0) {
-			fprintf(file, "ldc %d", $1);
+			fprintf(file, "    ldc %f\n", (float)$1.i_val);
 		}
-		// assign to factor
-		$$ = (float)$1;
+		// assign to factor for checking global declaration
+		$$.f_val = (float)$1.i_val;
+		strcpy($$.type, "int");
 	}
 	| F_CONST
 	{
 		// local declaration
 		if(table_num != 0) {
-			fprintf(file, "ldc %f", $1);
+			fprintf(file, "    ldc %f\n", $1.f_val);
 		}
-		// assign to factor
-		$$ = $1;
+		// assign to factor for checking global declaration
+		$$.f_val = $1.f_val;
+		strcpy($$.type, "float");
 	}
 	| SUB I_CONST
 	{
 		// local declaration
 		if(table_num != 0) {
-			fprintf(file, "ldc -%d", $2);
+			fprintf(file, "    ldc -%f\n", (float)$2.i_val);
 		}
-		// assign to factor
-		$$ = -(float)$2;
+		// assign to factor for checking global declaration
+		$$.f_val = -(float)$2.i_val;
+		strcpy($$.type, "int");
 	}
 	| SUB F_CONST
 	{
 		// local declaration
 		if(table_num != 0) {
-			fprintf(file, "ldc -%f", $2);
+			fprintf(file, "    ldc -%f\n", $2.f_val);
 		}
-		// assign to factor
-		$$ = -$2;
+		// assign to factor for checking global declaration
+		$$.f_val = -$2.f_val;
+		strcpy($$.type, "float");
 	}
 	| ID
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 		else {
-			lookup_register_num($1);	
-		//	fprintf(file, "");	
+			int regnum = lookup_register_num($1.string_val);
+			// global variable
+			if(regnum == -1) {
+				fprintf(file, "    getstatic compiler_hw3/%s\n", $1.string_val);	
+			}
+			// local variable
+			else {
+				char type[30];
+				strcpy(type, lookup_type($1.string_val));
+				if(!strcmp(type, "string")) {
+					fprintf(file, "    aload %d\n", regnum);
+				}
+				else {
+					// float, int, bool
+					fprintf(file, "    fload %d\n", regnum);
+				}
+			}
 		}
 		// assign to factor
-		$$ = -1;
+		$$.f_val = -1.0;
+		strcpy($$.type, lookup_type($1.string_val));
 	}
 	| LB expression_stat RB
 	{
 		// assign to factor
-		$$ = -1;
+		$$.f_val = -1.0;
+		//strcpy($$.type, lookup_type($2.string_val));
 	}
 	| ID arithmetic_postfix
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
+		}
+		else {
+			int regnum = lookup_register_num($1.string_val);
+			// global variable
+			if(regnum == -1) {
+				fprintf(file, "    getstatic compiler_hw3/%s\n", $1.string_val);	
+			}
+			// local variable
+			else {
+				// only int has ++ and --
+				if(!strcmp($2.string_val, "++")) {
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    ldc 1.0\n");
+					fprintf(file, "    fadd\n");
+					fprintf(file, "    fstore %d\n", regnum);
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    fsub\n");
+				}
+				else {
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    ldc 1.0\n");
+					fprintf(file, "    fsub\n");
+					fprintf(file, "    fstore %d\n", regnum);
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    fadd\n");
+				}
+			}
 		}
 		// assign to factor
-		else {
-		}
-		$$ = -1;
+		$$.f_val = -1.0;
+		strcpy($$.type, lookup_type($1.string_val));
 	}
 	| arithmetic_postfix ID
 	{
-		if(lookup_symbol($2, "semantic") == -1) {
+		if(lookup_symbol($2.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $2);
+			strcat(sem_error_msg, $2.string_val);
+		}
+		else {
+			int regnum = lookup_register_num($2.string_val);
+			// global variable
+			if(regnum == -1) {
+				fprintf(file, "    getstatic compiler_hw3/%s\n", $2.string_val);
+			}
+			// local variable
+			else {
+				// only int has ++ and --
+				if(!strcmp($1.string_val, "++")) {
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    ldc 1.0\n");
+					fprintf(file, "    fadd\n");
+					fprintf(file, "    fstore %d\n", regnum); // store back to register
+					fprintf(file, "    fload %d\n", regnum); // put on TOS
+				}
+				else {
+					fprintf(file, "    fload %d\n", regnum);
+					fprintf(file, "    ldc 1.0\n");
+					fprintf(file, "    fsub\n");
+					fprintf(file, "    fstore %d\n", regnum); // store back to register
+					fprintf(file, "    fload %d\n", regnum); // put on TOS
+				}
+			}
 		}
 		// assign to factor
-		else {
-
-		}
-		$$ = -1;
+		$$.f_val = -1.0;
+		strcpy($$.type, lookup_type($2.string_val));
 	}
 	| ID LB func_call RB
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared function ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 		// assign function return to factor
-		else {
-		
-		}
-		$$ = -1;
+		$$.f_val = -1.0;
+		//strcpy($$.type, lookup_type($3.string_val));
 	}
 ;
 
@@ -606,11 +748,11 @@ print_type
 	| SUB F_CONST RB SEMICOLON
 	| ID RB SEMICOLON
 	{
-		if(lookup_symbol($1, "semantic") == -1) {
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
-			strcat(sem_error_msg, $1);
+			strcat(sem_error_msg, $1.string_val);
 		}
 	}
 ;
@@ -637,7 +779,7 @@ asgn
 
 arithmetic_postfix
 	: INC
-	| DEC
+	| DEC 
 ;
 
 /* actions can be taken when meet the token or rule */
@@ -659,6 +801,7 @@ int main(int argc, char** argv)
 	table_num = 0;
 	create_symbol();
 	init_func_table();
+	register_site = 0;
 
     file = fopen("compiler_hw3.j","w");
      
@@ -727,7 +870,10 @@ void insert_symbol(char name[], char kind[], char type[], char attribute[], int 
 	strcpy(global_table[table_num].table[index].type, type);
 	global_table[table_num].table[index].scope = table_num;
 	strcpy(global_table[table_num].table[index].attribute, attribute);
-	global_table[table_num].table[index].register_num = register_site;
+	if(table_num != 0) {
+		global_table[table_num].table[index].register_num = register_site;
+		register_site++;
+	}
 }
 int lookup_symbol(char name[], char type[]) {
 	if(!strcmp(type, "insert")) {
@@ -864,6 +1010,16 @@ int lookup_register_num(char name[]) {
 		for(int i=0;i<30;i++) {
 			if(!strcmp(global_table[j].table[i].name, name)) {
 				return global_table[j].table[i].register_num;
+			}
+		}
+	}
+}
+
+char* lookup_type(char name[]) {
+	for(int j=0;j<=table_num;j++) {
+		for(int i=0;i<30;i++) {
+			if(!strcmp(global_table[j].table[i].name, name)) {
+				return global_table[j].table[i].type;
 			}
 		}
 	}
