@@ -154,7 +154,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 77 "compiler_hw3.y" /* yacc.c:1909  */
+#line 81 "compiler_hw3.y" /* yacc.c:1909  */
 
 	struct atom {
    		int i_val;

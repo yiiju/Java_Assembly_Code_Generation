@@ -5,34 +5,39 @@
 .field public static e F = 6.000000
 .field public static r F = 0.300000
 .field public static b Ljava/lang/String; = "Hi"
-    ldc 1.000000
-    fstore 0
     fload 0
+    fload 1
+    ldc 1.000000
+    fstore 3
+    fload 3
     ldc 6.000000
     fadd
-    fstore 1
-    ldc 5.000000
-    fstore 2
-    fload 2
-    ldc 1.000000
-    fadd
-    fstore 3
-    fload 3
+    fstore 4
+    invokestatic compiler_hw3/func()F
+    fstore 5
+    invokestatic compiler_hw3/func2(F)F
+    fstore -1
+    ldc ss
+    astore 4
+    aload 7
+    invokestatic compiler_hw3/func3(FLjava/lang/String;)F
+    fstore 8
+    fload 5
     ldc 1.0
     fadd
-    fstore 3
-    fload 3
+    fstore 5
+    fload 5
     fsub
     fstore -1
-    fload 2
+    fload 3
     ldc 1.0
     fsub
-    fstore 2
-    fload 2
-    fstore 5
+    fstore 3
+    fload 3
+    fstore 10
     ldc 4.000000
     ldc 2.000000
     frem
-    fstore 6
+    fstore 11
 	return
 .end method

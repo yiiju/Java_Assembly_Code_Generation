@@ -69,6 +69,10 @@ int lookup_register_num(char[]);
 char* lookup_type(char[]);
 int register_site;
 
+char call_func_parameter_type[100];
+char* lookup_attribute(char[]);
+char* changeto_java_type();
+
 %}
 
 /* Use variable or self-defined structure to represent
@@ -113,6 +117,7 @@ int register_site;
 %type <atom> initializer
 %type <atom> factor mul_expression_stat add_expression_stat expression_stat arithmetic_postfix
 %type <atom> relational
+%type <atom> const
 
 /* Yacc will start at this nonterminal */
 %start program
@@ -371,12 +376,41 @@ func_parameter
 
 func_call
 	: func_call COMMA const
+	{
+		if(strcmp(call_func_parameter_type, "")) {
+			strcat(call_func_parameter_type, ", ");
+			strcat(call_func_parameter_type, $3.type);
+		}
+		else {
+			strcpy(call_func_parameter_type, $3.type);
+		}
+	}
 	| const
+	{
+		if(strcmp(call_func_parameter_type, "")) {
+			strcat(call_func_parameter_type, ", ");
+			strcat(call_func_parameter_type, $1.type);
+		}
+		else {
+			strcpy(call_func_parameter_type, $1.type);
+		}
+	}
 ;
 
 const
 	: S_CONST
+	{
+		strcpy($$.type, "string");
+	}
 	| expression_stat
+	| TRUE
+	{
+		strcpy($$.type, "bool");
+	}
+	| FALSE
+	{
+		strcpy($$.type, "bool");
+	}
 ;
 
 expression
@@ -415,6 +449,17 @@ expression
 			strcat(sem_error_msg, "Undeclared function ");
 			strcat(sem_error_msg, $1.string_val);
 		}
+		if(strcmp(lookup_attribute($1.string_val), call_func_parameter_type)) {
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "function formal parameter is not the same");
+		}
+		char* paratype;
+		changeto_java_type(paratype);
+		char* returntype = lookup_type($1.string_val);
+		if(!strcmp(returntype, "void")) returntype = "V";
+		else returntype = "F";
+		fprintf(file, "    invokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
 	} SEMICOLON
 	| ID LB RB SEMICOLON
 	{
@@ -620,10 +665,10 @@ factor
 					fprintf(file, "    fadd\n");
 				}
 			}
+			// assign to factor
+			$$.f_val = -1.0;
+			strcpy($$.type, lookup_type($1.string_val));
 		}
-		// assign to factor
-		$$.f_val = -1.0;
-		strcpy($$.type, lookup_type($1.string_val));
 	}
 	| arithmetic_postfix ID
 	{
@@ -657,10 +702,10 @@ factor
 					fprintf(file, "    fload %d\n", regnum); // put on TOS
 				}
 			}
+			// assign to factor
+			$$.f_val = -1.0;
+			strcpy($$.type, lookup_type($2.string_val));
 		}
-		// assign to factor
-		$$.f_val = -1.0;
-		strcpy($$.type, lookup_type($2.string_val));
 	}
 	| ID LB func_call RB
 	{
@@ -670,9 +715,40 @@ factor
 			strcat(sem_error_msg, "Undeclared function ");
 			strcat(sem_error_msg, $1.string_val);
 		}
+		if(strcmp(lookup_attribute($1.string_val), call_func_parameter_type)) {
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "function formal parameter is not the same");
+		}
+		char paratype[100];
+		strcpy(paratype, changeto_java_type());
+		char* returntype = lookup_type($1.string_val);
+		if(!strcmp(returntype, "void")) returntype = "V";
+		else returntype = "F";
+		fprintf(file, "    invokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
+		memset(call_func_parameter_type, '\0', sizeof(call_func_parameter_type));
 		// assign function return to factor
 		$$.f_val = -1.0;
-		//strcpy($$.type, lookup_type($3.string_val));
+	}
+	| ID LB RB
+	{
+		if(lookup_symbol($1.string_val, "semantic") == -1) {
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Undeclared function ");
+			strcat(sem_error_msg, $1.string_val);
+		}
+		if(strcmp(lookup_attribute($1.string_val), "")) {
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "function formal parameter is not the same");
+		}
+		char* returntype = lookup_type($1.string_val);
+		if(!strcmp(returntype, "void")) returntype = "V";
+		else returntype = "F";
+		fprintf(file, "    invokestatic compiler_hw3/%s()%s\n", $1.string_val, returntype);
+		// assign function return to factor
+		$$.f_val = -1.0;
 	}
 ;
 
@@ -853,7 +929,7 @@ void semantic_error(char errormsg[100], int sem_line) {
 }
 
 void create_symbol() {
-	for(int i;i<30;i++) {
+	for(int i=0;i<30;i++) {
 		global_table[table_num].table[i].index = -1;
 		strcpy(global_table[table_num].table[i].name, "\0");
 		strcpy(global_table[table_num].table[i].kind, "\0");
@@ -1023,6 +1099,34 @@ char* lookup_type(char name[]) {
 			}
 		}
 	}
+}
+
+char* lookup_attribute(char name[]) {
+	for(int j=0;j<=table_num;j++) {
+		for(int i=0;i<30;i++) {
+			if(!strcmp(global_table[j].table[i].name, name)) {
+				return global_table[j].table[i].attribute;
+			}
+		}
+	}	
+}
+
+char* changeto_java_type() {
+	char new_type[100];
+	memset(new_type, '\0', sizeof(new_type));
+	char temp_attr[100];
+	strcpy(temp_attr, call_func_parameter_type);
+	char* delim = ", ";
+  	char* type;
+	type = strtok(temp_attr, delim);
+ 	while (type != NULL)
+  	{
+		if(!strcmp(type, "string")) strcat(new_type, "Ljava/lang/String;");
+		else strcat(new_type, "F");
+    	type = strtok(NULL, delim);
+  	}   
+	char* javatype = new_type;
+	return javatype;
 }
 
 /* code generation functions */
