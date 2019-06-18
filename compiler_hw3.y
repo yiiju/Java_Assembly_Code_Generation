@@ -13,8 +13,6 @@ extern char buf[256];  // Get current code line from lex
 
 FILE *file; // To generate .j file for Jasmin
 
-void gencode_function();
-
 void semantic_error(char errormsg[100], int sem_line);
 int error_flag;
 char sem_error_msg[100];
@@ -35,6 +33,7 @@ struct symbol
 	int scope;
 	char attribute[100];
 	int register_num;
+	int func_decla;
 };
 
 struct scope
@@ -69,9 +68,31 @@ int lookup_register_num(char[]);
 char* lookup_type(char[]);
 int register_site;
 
-char call_func_parameter_type[100];
+char func_para_type[100];
 char* lookup_attribute(char[]);
 char* changeto_java_type();
+void gen_print(char[]);
+void gen_ID(char[]);
+struct expre {
+	int kind;
+	int regnum;
+	int i_val;
+	float f_val;
+	char type[30];
+}expre_factor[2];
+int expre_site;
+void set_expre_factor(int, int, int, float, char[]);
+void clear_expre_factor();
+
+int func_index;
+void gen_function();
+struct check_index {
+	int has;
+	int cur_func_index;
+}check_index;
+void set_para(char[]);
+void set_func_decla(int);
+int get_func_decla();
 
 %}
 
@@ -88,14 +109,13 @@ char* changeto_java_type();
 }
 
 /* Token without return */
-%token INT FLOAT STRING BOOL VOID
 %token ADD SUB MUL DIV MOD
 %token ASGN ADDASGN SUBASGN MULASGN DIVASGN MODASGN
 %token AND OR NOT
 %token LB RB LCB RCB LSB RSB COMMA
 %token PRINT 
 %token IF ELSE FOR WHILE
-%token ID SEMICOLON
+%token SEMICOLON
 %token RET
 %token START_COMMENT END_COMMENT CPLUS_COMMENT
 
@@ -108,16 +128,17 @@ char* changeto_java_type();
 %token <atom> INC 
 %token <atom> DEC
 %token <atom> MT LT MTE LTE EQ NE
+%token <atom> ID INT FLOAT BOOL STRING VOID
 
 /* Nonterminal with return, which need to sepcify type */
 %type <atom> type
-%type <atom> ID INT FLOAT BOOL STRING VOID
-%type <atom> func_end
+%type <atom> func_end func
 %type <atom> SEMICOLON
 %type <atom> initializer
 %type <atom> factor mul_expression_stat add_expression_stat expression_stat arithmetic_postfix
 %type <atom> relational
 %type <atom> const
+%type <atom> print_func print_type
 
 /* Yacc will start at this nonterminal */
 %start program
@@ -133,11 +154,7 @@ program
 stat
     : declaration 
 	| declaration_func
-    | expression
-	| iteration_stat
-    | print_func
 	| comment_stat
-	| RET return_stat
 ;
 
 func_stat
@@ -156,17 +173,52 @@ func_mul_stat
 
 return_stat
 	: initializer SEMICOLON
-	| expression_stat SEMICOLON
+	| expression_stat SEMICOLON { expre_site = 0; }
 	| SEMICOLON
 ;
 
 func
-	: func_parameter RB func_end 
+	: func_parameter RB 
 	{
+		char attr[100];
+		bzero(attr, 100);
+		int flag = 0;
+		for(int i=0;i<30;i++) {
+			if(global_table[1].table[i].index != -1) {
+				if(!strcmp(global_table[1].table[i].kind, "parameter")) {
+					if(flag == 1) {
+						strcat(attr, ", ");
+					}
+					strcat(attr, global_table[1].table[i].type);
+					flag = 1;
+				}
+			}
+			else break;
+		}
+		if(check_index.has == 0) {
+			// first
+			set_para(attr);
+			// fill func_para_type
+			strcpy(func_para_type, global_table[0].table[check_index.cur_func_index].attribute);
+		}
+		else {
+			// check parameter
+			if(strcmp(attr, global_table[0].table[check_index.cur_func_index].attribute)) {
+				// paramater is not the same
+				error_flag = 1;
+				bzero(sem_error_msg, 100);
+				strcat(sem_error_msg, "function formal parameter is not the same");
+			}
+		}
+	}
+	func_end 
+	{
+	/*
 		if(!strcmp($3.string_val, ";")) {
 			table_num--;
 			func_flag = 1;
 		}
+		*/
 		//else func_flag = 1;
 	}
 	| RB func_end
@@ -181,7 +233,21 @@ func
 
 func_end
 	: SEMICOLON
-	| LCB func_mul_stat RCB
+	{
+		if(get_func_decla() == 1) {
+			// redefine function
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Redeclared variable ");
+			strcat(sem_error_msg, global_table[0].table[check_index.cur_func_index].name);
+		}
+		else set_func_decla(1);
+	}
+	| LCB 
+	{
+		gen_function();
+	}
+	func_mul_stat RCB
 	{ 
 		dump_flag = 1; 
 		clear_temp_table();
@@ -201,10 +267,10 @@ declaration
 				char type_descriptor[20];
 				if(!strcmp($1.string_val, "bool")) {
 					strcpy(type_descriptor,"F");
-					int booltype;
+					float booltype;
 					if(!strcmp($4.string_val, "true")) booltype = 1.0;
-					else booltype = 0;
-    				fprintf(file, ".field public static %s %s = %d\n", $2.string_val, type_descriptor, booltype);
+					else booltype = 0.0;
+    				fprintf(file, ".field public static %s %s = %f\n", $2.string_val, type_descriptor, booltype);
 				}
 				else if(!strcmp($1.string_val, "string")) {
 					strcpy(type_descriptor,"Ljava/lang/String;");
@@ -223,7 +289,7 @@ declaration
 				}
 				else if(!strcmp($1.string_val, "string")) {
 					char *strconst = strtok($4.string_val, "\"");
-					fprintf(file, "    ldc %s\n", strconst);
+					fprintf(file, "    ldc \"%s\"\n", strconst);
 					fprintf(file, "    astore %d\n", index);
 				}
 			}
@@ -298,6 +364,7 @@ declaration
 					fprintf(file, "    fstore %d\n", regnum);
 				}
 			}
+			expre_site = 0;
 		}
 		else {
 			error_flag = 1;
@@ -311,19 +378,30 @@ declaration
 declaration_func
 	: type ID LB 
 	{ 
-		table_num++; 
-		create_symbol(); 
-		/*
-		int index = lookup_func_table($2);
-		if(index == 2) {
-			error_flag = 1;
-			bzero(sem_error_msg, 100);
-			strcat(sem_error_msg, "Redeclared function ");
-			strcat(sem_error_msg, $2);
+		int has = lookup_symbol($2.string_val, "global"); 
+		int index = lookup_symbol($2.string_val, "insert");
+		check_index.cur_func_index = index;
+		if(has == -1) {
+			// first time
+			check_index.has = 0;
+			if(index != -1) {
+				insert_symbol($2.string_val, "function", $1.string_val, "", index);
+			}
 		}
-		*/
-	} func
-	{
+		else {
+			// declare or define before
+			check_index.has = 1;
+			if(!strcmp($1.string_val, global_table[0].table[has].name)) {
+				// return type not the same
+				error_flag = 1;
+				bzero(sem_error_msg, 100);
+				strcat(sem_error_msg, "function return type is not the same");
+			}
+		}
+		table_num++; 
+		create_symbol();
+		
+	/*	
 		int index = lookup_symbol($2.string_val, "insert"); 
 		if(index != -1) {
 			char attr[100];
@@ -354,7 +432,11 @@ declaration_func
 			else insert_func_table($2.string_val);
 			func_flag = 0;
 		}
+		func_index = lookup_symbol($2.string_val, "global");
+		printf("debug decla func %d\n", func_index);
+	*/
 	}
+	func
 ;
 
 func_parameter
@@ -377,22 +459,22 @@ func_parameter
 func_call
 	: func_call COMMA const
 	{
-		if(strcmp(call_func_parameter_type, "")) {
-			strcat(call_func_parameter_type, ", ");
-			strcat(call_func_parameter_type, $3.type);
+		if(strcmp(func_para_type, "")) {
+			strcat(func_para_type, ", ");
+			strcat(func_para_type, $3.type);
 		}
 		else {
-			strcpy(call_func_parameter_type, $3.type);
+			strcpy(func_para_type, $3.type);
 		}
 	}
 	| const
 	{
-		if(strcmp(call_func_parameter_type, "")) {
-			strcat(call_func_parameter_type, ", ");
-			strcat(call_func_parameter_type, $1.type);
+		if(strcmp(func_para_type, "")) {
+			strcat(func_para_type, ", ");
+			strcat(func_para_type, $1.type);
 		}
 		else {
-			strcpy(call_func_parameter_type, $1.type);
+			strcpy(func_para_type, $1.type);
 		}
 	}
 ;
@@ -403,6 +485,9 @@ const
 		strcpy($$.type, "string");
 	}
 	| expression_stat
+	{
+		expre_site = 0;
+	}
 	| TRUE
 	{
 		strcpy($$.type, "bool");
@@ -422,6 +507,7 @@ expression
 			strcat(sem_error_msg, "Undeclared variable ");
 			strcat(sem_error_msg, $1.string_val);
 		}
+		expre_site = 0;
 	}
 	| ID arithmetic_postfix SEMICOLON
 	{
@@ -449,7 +535,7 @@ expression
 			strcat(sem_error_msg, "Undeclared function ");
 			strcat(sem_error_msg, $1.string_val);
 		}
-		if(strcmp(lookup_attribute($1.string_val), call_func_parameter_type)) {
+		if(strcmp(lookup_attribute($1.string_val), func_para_type)) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "function formal parameter is not the same");
@@ -539,11 +625,15 @@ mul_expression_stat
 		strcpy(type1, $1.type);
 		strcpy(type2, $3.type);
 		if(!strcmp(type1, "int") && !strcmp(type2, "int")) {
-			fprintf(file, "    frem\n");
+
+			fprintf(file, "    irem\n");
 		}
 		else {
 			// semantic error
 			// Modulo operator (%) with floating point operands
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Modulo operator (%) with floating point operands");
 		}
 		$$.f_val = -1.0;
 	}
@@ -558,6 +648,7 @@ factor
 	{
 		// local declaration
 		if(table_num != 0) {
+			//set_expre_factor(0, -1, $1.i_val, -1, "int");
 			fprintf(file, "    ldc %f\n", (float)$1.i_val);
 		}
 		// assign to factor for checking global declaration
@@ -568,6 +659,7 @@ factor
 	{
 		// local declaration
 		if(table_num != 0) {
+			//set_expre_factor(0, -1, -1, $1.f_val, "float");
 			fprintf(file, "    ldc %f\n", $1.f_val);
 		}
 		// assign to factor for checking global declaration
@@ -578,6 +670,7 @@ factor
 	{
 		// local declaration
 		if(table_num != 0) {
+			//set_expre_factor(0, -1, -$2.i_val, -1, "int");
 			fprintf(file, "    ldc -%f\n", (float)$2.i_val);
 		}
 		// assign to factor for checking global declaration
@@ -588,6 +681,7 @@ factor
 	{
 		// local declaration
 		if(table_num != 0) {
+			//set_expre_factor(0, -1, -1, -$2.i_val, "float");
 			fprintf(file, "    ldc -%f\n", $2.f_val);
 		}
 		// assign to factor for checking global declaration
@@ -603,6 +697,8 @@ factor
 			strcat(sem_error_msg, $1.string_val);
 		}
 		else {
+			gen_ID($1.string_val);
+			/*
 			int regnum = lookup_register_num($1.string_val);
 			// global variable
 			if(regnum == -1) {
@@ -620,13 +716,15 @@ factor
 					fprintf(file, "    fload %d\n", regnum);
 				}
 			}
+			*/
+			// assign to factor
+			$$.f_val = -1.0;
+			strcpy($$.type, lookup_type($1.string_val));
 		}
-		// assign to factor
-		$$.f_val = -1.0;
-		strcpy($$.type, lookup_type($1.string_val));
 	}
 	| LB expression_stat RB
 	{
+		// set_expre_factor(0, -1, -1, -$2.i_val, "float");
 		// assign to factor
 		$$.f_val = -1.0;
 		//strcpy($$.type, lookup_type($2.string_val));
@@ -715,7 +813,7 @@ factor
 			strcat(sem_error_msg, "Undeclared function ");
 			strcat(sem_error_msg, $1.string_val);
 		}
-		if(strcmp(lookup_attribute($1.string_val), call_func_parameter_type)) {
+		if(strcmp(lookup_attribute($1.string_val), func_para_type)) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "function formal parameter is not the same");
@@ -726,7 +824,7 @@ factor
 		if(!strcmp(returntype, "void")) returntype = "V";
 		else returntype = "F";
 		fprintf(file, "    invokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
-		memset(call_func_parameter_type, '\0', sizeof(call_func_parameter_type));
+		memset(func_para_type, '\0', sizeof(func_para_type));
 		// assign function return to factor
 		$$.f_val = -1.0;
 	}
@@ -753,14 +851,14 @@ factor
 ;
 
 iteration_stat
-	: WHILE LB expression_stat RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
+	: WHILE LB expression_stat { expre_site = 0; } RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
 	}
-	| IF LB expression_stat RB LCB { table_num++; create_symbol(); }  func_mul_stat RCB
+	| IF LB expression_stat { expre_site = 0; } RB LCB { table_num++; create_symbol(); }  func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
@@ -775,7 +873,7 @@ haselse
 ;
 
 haselseif
-	: IF LB expression_stat RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
+	: IF LB expression_stat { expre_site = 0; } RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
@@ -814,14 +912,43 @@ relational
 
 print_func
 	: PRINT LB print_type
+	{
+		gen_print($3.type);
+	}
 ;
 
 print_type
 	: S_CONST RB SEMICOLON
+	{
+		char *strconst = strtok($1.string_val, "\"");
+		fprintf(file, "    ldc %s\n", strconst);
+		$$ = $1;
+		strcpy($$.type, "string");
+	}
 	| I_CONST RB SEMICOLON
+	{
+		fprintf(file, "    ldc %f", $1.f_val);
+		$$ = $1;
+		strcpy($$.type, "int");
+	}
 	| F_CONST RB SEMICOLON
+	{
+		fprintf(file, "    ldc %f", $1.f_val);
+		$$ = $1;
+		strcpy($$.type, "float");
+	}
 	| SUB I_CONST RB SEMICOLON
+	{
+		fprintf(file, "    ldc %f", $2.f_val);
+		$$ = $2;
+		strcpy($$.type, "int");
+	}
 	| SUB F_CONST RB SEMICOLON
+	{
+		fprintf(file, "    ldc %f", $2.f_val);
+		$$ = $2;
+		strcpy($$.type, "float");
+	}
 	| ID RB SEMICOLON
 	{
 		if(lookup_symbol($1.string_val, "semantic") == -1) {
@@ -829,6 +956,11 @@ print_type
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared variable ");
 			strcat(sem_error_msg, $1.string_val);
+		}
+		else {
+			gen_ID($1.string_val);
+			$$ = $1;
+			strcpy($$.type, lookup_type($1.string_val));
 		}
 	}
 ;
@@ -884,8 +1016,6 @@ int main(int argc, char** argv)
     fprintf(file,   ".class public compiler_hw3\n"
                     ".super java/lang/Object\n");
 	
-	fprintf(file, ".method public static main([Ljava/lang/String;)V\n");
- 
  	yyparse();
 	if(syntax_flag == 1) {
 		printf("%d: %s\n", yylineno, buf);
@@ -937,6 +1067,7 @@ void create_symbol() {
 		global_table[table_num].table[i].scope = table_num;
 		strcpy(global_table[table_num].table[i].attribute, "\0");
 		global_table[table_num].table[i].register_num = -1;
+		global_table[table_num].table[i].func_decla = -1;
 	}
 }
 void insert_symbol(char name[], char kind[], char type[], char attribute[], int index) {
@@ -951,6 +1082,19 @@ void insert_symbol(char name[], char kind[], char type[], char attribute[], int 
 		register_site++;
 	}
 }
+
+void set_para(char attribute[]) {
+	strcpy(global_table[0].table[check_index.cur_func_index].attribute, attribute);
+}
+
+void set_func_decla(int flag) {
+	global_table[0].table[check_index.cur_func_index].func_decla = flag;
+}
+
+int get_func_decla() {
+	return global_table[0].table[check_index.cur_func_index].func_decla;
+}
+
 int lookup_symbol(char name[], char type[]) {
 	if(!strcmp(type, "insert")) {
 		int i;
@@ -966,6 +1110,14 @@ int lookup_symbol(char name[], char type[]) {
 				return i;
 			}
 		}
+	}
+	else if(!strcmp(type, "global")) {
+		for(int i=0;i<30;i++) {
+			if(!strcmp(global_table[0].table[i].name, name)) {
+				return i;
+			}
+		}
+		return -1;
 	}
 	else {
 		// check before scope
@@ -1115,13 +1267,14 @@ char* changeto_java_type() {
 	char new_type[100];
 	memset(new_type, '\0', sizeof(new_type));
 	char temp_attr[100];
-	strcpy(temp_attr, call_func_parameter_type);
+	strcpy(temp_attr, func_para_type);
 	char* delim = ", ";
   	char* type;
 	type = strtok(temp_attr, delim);
  	while (type != NULL)
   	{
 		if(!strcmp(type, "string")) strcat(new_type, "Ljava/lang/String;");
+		else if(!strcmp(type, "void")) strcat(new_type, "V");
 		else strcat(new_type, "F");
     	type = strtok(NULL, delim);
   	}   
@@ -1129,7 +1282,75 @@ char* changeto_java_type() {
 	return javatype;
 }
 
-/* code generation functions */
-void gencode_function() {
+void gen_print(char type[30]) {
+	fprintf(file, "    getstatic java/lang/System/out Ljava/io/PrintStream;\n");
+	fprintf(file, "    swap\n");
+	if(!strcmp(type, "string")) type = "Ljava/lang/String;";
+	else type = "F";
+	fprintf(file, "    invokevirtual java/io/PrintStream/println(%s)V\n", type);
+}
 
+void gen_ID(char value[100]) {
+	int regnum = lookup_register_num(value);
+	//strcpy(type, lookup_type(value));
+	// global variable
+	if(regnum == -1) {
+		/*
+		if(!strcmp(type, "int")) set_expre_factor(2, -1, value, -1, type);
+		else if(!strcmp(type, "float")) set_expre_factor(2, -1, -1, value, type);
+		*/
+		fprintf(file, "    getstatic compiler_hw3/%s\n", value);	
+	}
+	// local variable
+	else {
+		char type[30];
+		//set_expre_factor(1, regnum, -1, -1, type);
+		if(!strcmp(type, "string")) {
+			fprintf(file, "    aload %d\n", regnum);
+		}
+		else {
+			// float, int, bool
+			fprintf(file, "    fload %d\n", regnum);
+		}
+	}
+}
+
+void clear_expre_factor() {
+	expre_factor[expre_site].kind = -1;
+	expre_factor[expre_site].regnum = -1;
+	expre_factor[expre_site].i_val = -1;
+	expre_factor[expre_site].f_val = -1;
+	strcpy(expre_factor[expre_site].type, "");
+}
+
+void set_expre_factor(int kind, int regnum, int i_val, float f_val, char type[30]) {
+	clear_expre_factor();
+	expre_factor[expre_site].kind = kind;
+	expre_factor[expre_site].regnum = regnum;
+	expre_factor[expre_site].i_val = i_val;
+	expre_factor[expre_site].f_val = f_val;
+	strcpy(expre_factor[expre_site].type, type);
+	if(expre_site == 0) expre_site = 1;
+	else expre_site = 0;
+}
+
+void gen_function() {
+	char name[100];
+	strcpy(name, global_table[0].table[check_index.cur_func_index].name);
+	if(!strcmp(name, "main")) {
+		fprintf(file, ".method public static main([Ljava/lang/String;)V\n");
+	}
+	else {
+		strcpy(func_para_type, global_table[0].table[check_index.cur_func_index].attribute);
+		char attr[100];
+		strcpy(attr, changeto_java_type());
+		memset(func_para_type, '\0', sizeof(func_para_type));
+		strcpy(func_para_type, global_table[0].table[check_index.cur_func_index].type);
+		char type[100];
+		strcpy(type, changeto_java_type());
+		memset(func_para_type, '\0', sizeof(func_para_type));
+		fprintf(file, ".method public static %s(%s)%s\n", name, attr, type);
+	}
+	fprintf(file, ".limit stack 50\n");
+	fprintf(file, ".limit locals 50\n");
 }
