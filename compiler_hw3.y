@@ -249,6 +249,10 @@ func_end
 	}
 	func_mul_stat RCB
 	{ 
+		if(!strcmp(global_table[0].table[check_index.cur_func_index].type, "void")) fprintf(file, "\treturn\n");
+		else fprintf(file, "\tfreturn\n");
+		fprintf(file, ".end method\n");
+		register_site = 0;
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
@@ -284,13 +288,13 @@ declaration
 					int booltype;
 					if(!strcmp($4.string_val, "true")) booltype = 1;
 					else booltype = 0;
-					fprintf(file, "    ldc %d\n", booltype);
-					fprintf(file, "    istore %d\n", index);
+					fprintf(file, "\tldc %d\n", booltype);
+					fprintf(file, "\tistore %d\n", index);
 				}
 				else if(!strcmp($1.string_val, "string")) {
 					char *strconst = strtok($4.string_val, "\"");
-					fprintf(file, "    ldc \"%s\"\n", strconst);
-					fprintf(file, "    astore %d\n", index);
+					fprintf(file, "\tldc \"%s\"\n", strconst);
+					fprintf(file, "\tastore %d\n", index);
 				}
 			}
 		}
@@ -322,15 +326,15 @@ declaration
 			// local declaration
 			else {
 				char type_descriptor[20];
-    			fprintf(file, "    ldc 0\n");
+    			fprintf(file, "\tldc 0\n");
 				if(!strcmp($1.string_val, "string")) {
 					strcpy(type_descriptor, "Ljava/lang/String;");
-					fprintf(file, "    astore 0\n");
+					fprintf(file, "\tastore 0\n");
 				}
 				else {
 					// float, int, bool
 					strcpy(type_descriptor, "F");
-    				fprintf(file, "    fstore 0\n");
+    				fprintf(file, "\tfstore 0\n");
 				}
 			}
 		}
@@ -357,11 +361,11 @@ declaration
 			else {
 				int regnum = lookup_register_num($2.string_val);
 				if(!strcmp($1.string_val, "string")) {
-					fprintf(file, "    astore %d\n", regnum);
+					fprintf(file, "\tastore %d\n", regnum);
 				}
 				else {
 					// float, int, bool
-					fprintf(file, "    fstore %d\n", regnum);
+					fprintf(file, "\tfstore %d\n", regnum);
 				}
 			}
 			expre_site = 0;
@@ -400,41 +404,6 @@ declaration_func
 		}
 		table_num++; 
 		create_symbol();
-		
-	/*	
-		int index = lookup_symbol($2.string_val, "insert"); 
-		if(index != -1) {
-			char attr[100];
-			bzero(attr, 100);
-			int flag = 0;
-			for(int i=0;i<30;i++) {
-				if(global_table[table_num+1].table[i].index != -1) {
-					if(!strcmp(global_table[table_num+1].table[i].kind, "parameter")) {
-						if(flag == 1) {
-							strcat(attr, ", ");
-						}
-						strcat(attr, global_table[table_num+1].table[i].type);
-						flag = 1;
-					}
-				}
-				else break;
-			}
-			insert_symbol($2.string_val, "function", $1.string_val, attr, index);
-		}
-		if(func_flag == 1) {
-			index = lookup_func_table($2.string_val);
-			if(index == 2) {
-				error_flag = 1;
-				bzero(sem_error_msg, 100);
-				strcat(sem_error_msg, "Redeclared function ");
-				strcat(sem_error_msg, $2.string_val);
-			}
-			else insert_func_table($2.string_val);
-			func_flag = 0;
-		}
-		func_index = lookup_symbol($2.string_val, "global");
-		printf("debug decla func %d\n", func_index);
-	*/
 	}
 	func
 ;
@@ -545,7 +514,7 @@ expression
 		char* returntype = lookup_type($1.string_val);
 		if(!strcmp(returntype, "void")) returntype = "V";
 		else returntype = "F";
-		fprintf(file, "    invokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
+		fprintf(file, "\tinvokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
 	} SEMICOLON
 	| ID LB RB SEMICOLON
 	{
@@ -594,12 +563,12 @@ expression_stat
 add_expression_stat
 	: add_expression_stat ADD mul_expression_stat
 	{
-		fprintf(file, "    fadd\n");
+		fprintf(file, "\tfadd\n");
 		$$.f_val = -1.0;
 	}
 	| add_expression_stat SUB mul_expression_stat
 	{
-		fprintf(file, "    fsub\n");
+		fprintf(file, "\tfsub\n");
 		$$.f_val = -1.0;
 	}
 	| mul_expression_stat
@@ -611,12 +580,12 @@ add_expression_stat
 mul_expression_stat
 	: mul_expression_stat MUL factor
 	{
-		fprintf(file, "    fmul\n");
+		fprintf(file, "\tfmul\n");
 		$$.f_val = -1.0;
 	}
 	| mul_expression_stat DIV factor
 	{
-		fprintf(file, "    fdiv\n");
+		fprintf(file, "\tfdiv\n");
 		$$.f_val = -1.0;
 	}
 	| mul_expression_stat MOD factor
@@ -626,7 +595,7 @@ mul_expression_stat
 		strcpy(type2, $3.type);
 		if(!strcmp(type1, "int") && !strcmp(type2, "int")) {
 
-			fprintf(file, "    irem\n");
+			fprintf(file, "\tirem\n");
 		}
 		else {
 			// semantic error
@@ -649,7 +618,7 @@ factor
 		// local declaration
 		if(table_num != 0) {
 			//set_expre_factor(0, -1, $1.i_val, -1, "int");
-			fprintf(file, "    ldc %f\n", (float)$1.i_val);
+			fprintf(file, "\tldc %f\n", (float)$1.i_val);
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = (float)$1.i_val;
@@ -660,7 +629,7 @@ factor
 		// local declaration
 		if(table_num != 0) {
 			//set_expre_factor(0, -1, -1, $1.f_val, "float");
-			fprintf(file, "    ldc %f\n", $1.f_val);
+			fprintf(file, "\tldc %f\n", $1.f_val);
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = $1.f_val;
@@ -671,7 +640,7 @@ factor
 		// local declaration
 		if(table_num != 0) {
 			//set_expre_factor(0, -1, -$2.i_val, -1, "int");
-			fprintf(file, "    ldc -%f\n", (float)$2.i_val);
+			fprintf(file, "\tldc -%f\n", (float)$2.i_val);
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = -(float)$2.i_val;
@@ -682,7 +651,7 @@ factor
 		// local declaration
 		if(table_num != 0) {
 			//set_expre_factor(0, -1, -1, -$2.i_val, "float");
-			fprintf(file, "    ldc -%f\n", $2.f_val);
+			fprintf(file, "\tldc -%f\n", $2.f_val);
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = -$2.f_val;
@@ -698,25 +667,6 @@ factor
 		}
 		else {
 			gen_ID($1.string_val);
-			/*
-			int regnum = lookup_register_num($1.string_val);
-			// global variable
-			if(regnum == -1) {
-				fprintf(file, "    getstatic compiler_hw3/%s\n", $1.string_val);	
-			}
-			// local variable
-			else {
-				char type[30];
-				strcpy(type, lookup_type($1.string_val));
-				if(!strcmp(type, "string")) {
-					fprintf(file, "    aload %d\n", regnum);
-				}
-				else {
-					// float, int, bool
-					fprintf(file, "    fload %d\n", regnum);
-				}
-			}
-			*/
 			// assign to factor
 			$$.f_val = -1.0;
 			strcpy($$.type, lookup_type($1.string_val));
@@ -741,26 +691,26 @@ factor
 			int regnum = lookup_register_num($1.string_val);
 			// global variable
 			if(regnum == -1) {
-				fprintf(file, "    getstatic compiler_hw3/%s\n", $1.string_val);	
+				fprintf(file, "\tgetstatic compiler_hw3/%s\n", $1.string_val);	
 			}
 			// local variable
 			else {
 				// only int has ++ and --
 				if(!strcmp($2.string_val, "++")) {
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    ldc 1.0\n");
-					fprintf(file, "    fadd\n");
-					fprintf(file, "    fstore %d\n", regnum);
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    fsub\n");
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
+					fprintf(file, "\tfadd\n");
+					fprintf(file, "\tfstore %d\n", regnum);
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tfsub\n");
 				}
 				else {
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    ldc 1.0\n");
-					fprintf(file, "    fsub\n");
-					fprintf(file, "    fstore %d\n", regnum);
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    fadd\n");
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
+					fprintf(file, "\tfsub\n");
+					fprintf(file, "\tfstore %d\n", regnum);
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tfadd\n");
 				}
 			}
 			// assign to factor
@@ -780,24 +730,24 @@ factor
 			int regnum = lookup_register_num($2.string_val);
 			// global variable
 			if(regnum == -1) {
-				fprintf(file, "    getstatic compiler_hw3/%s\n", $2.string_val);
+				fprintf(file, "\tgetstatic compiler_hw3/%s\n", $2.string_val);
 			}
 			// local variable
 			else {
 				// only int has ++ and --
 				if(!strcmp($1.string_val, "++")) {
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    ldc 1.0\n");
-					fprintf(file, "    fadd\n");
-					fprintf(file, "    fstore %d\n", regnum); // store back to register
-					fprintf(file, "    fload %d\n", regnum); // put on TOS
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
+					fprintf(file, "\tfadd\n");
+					fprintf(file, "\tfstore %d\n", regnum); // store back to register
+					fprintf(file, "\tfload %d\n", regnum); // put on TOS
 				}
 				else {
-					fprintf(file, "    fload %d\n", regnum);
-					fprintf(file, "    ldc 1.0\n");
-					fprintf(file, "    fsub\n");
-					fprintf(file, "    fstore %d\n", regnum); // store back to register
-					fprintf(file, "    fload %d\n", regnum); // put on TOS
+					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
+					fprintf(file, "\tfsub\n");
+					fprintf(file, "\tfstore %d\n", regnum); // store back to register
+					fprintf(file, "\tfload %d\n", regnum); // put on TOS
 				}
 			}
 			// assign to factor
@@ -823,7 +773,7 @@ factor
 		char* returntype = lookup_type($1.string_val);
 		if(!strcmp(returntype, "void")) returntype = "V";
 		else returntype = "F";
-		fprintf(file, "    invokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
+		fprintf(file, "\tinvokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
 		memset(func_para_type, '\0', sizeof(func_para_type));
 		// assign function return to factor
 		$$.f_val = -1.0;
@@ -844,7 +794,7 @@ factor
 		char* returntype = lookup_type($1.string_val);
 		if(!strcmp(returntype, "void")) returntype = "V";
 		else returntype = "F";
-		fprintf(file, "    invokestatic compiler_hw3/%s()%s\n", $1.string_val, returntype);
+		fprintf(file, "\tinvokestatic compiler_hw3/%s()%s\n", $1.string_val, returntype);
 		// assign function return to factor
 		$$.f_val = -1.0;
 	}
@@ -921,31 +871,31 @@ print_type
 	: S_CONST RB SEMICOLON
 	{
 		char *strconst = strtok($1.string_val, "\"");
-		fprintf(file, "    ldc %s\n", strconst);
+		fprintf(file, "\tldc %s\n", strconst);
 		$$ = $1;
 		strcpy($$.type, "string");
 	}
 	| I_CONST RB SEMICOLON
 	{
-		fprintf(file, "    ldc %f", $1.f_val);
+		fprintf(file, "\tldc %f", $1.f_val);
 		$$ = $1;
 		strcpy($$.type, "int");
 	}
 	| F_CONST RB SEMICOLON
 	{
-		fprintf(file, "    ldc %f", $1.f_val);
+		fprintf(file, "\tldc %f", $1.f_val);
 		$$ = $1;
 		strcpy($$.type, "float");
 	}
 	| SUB I_CONST RB SEMICOLON
 	{
-		fprintf(file, "    ldc %f", $2.f_val);
+		fprintf(file, "\tldc %f", $2.f_val);
 		$$ = $2;
 		strcpy($$.type, "int");
 	}
 	| SUB F_CONST RB SEMICOLON
 	{
-		fprintf(file, "    ldc %f", $2.f_val);
+		fprintf(file, "\tldc %f", $2.f_val);
 		$$ = $2;
 		strcpy($$.type, "float");
 	}
@@ -1030,9 +980,6 @@ int main(int argc, char** argv)
 		printf("\nTotal lines: %d \n",yylineno-1);
 	}
 
-	fprintf(file, "\treturn\n"
-                  ".end method\n");
-    
     fclose(file);
 
     return 0;
@@ -1234,7 +1181,7 @@ int lookup_func_table(char name[]) {
 
 int lookup_register_num(char name[]) {
 	// check before scope
-	for(int j=0;j<=table_num;j++) {
+	for(int j=table_num;j>=0;j--) {
 		for(int i=0;i<30;i++) {
 			if(!strcmp(global_table[j].table[i].name, name)) {
 				return global_table[j].table[i].register_num;
@@ -1244,7 +1191,7 @@ int lookup_register_num(char name[]) {
 }
 
 char* lookup_type(char name[]) {
-	for(int j=0;j<=table_num;j++) {
+	for(int j=table_num;j>=0;j--) {
 		for(int i=0;i<30;i++) {
 			if(!strcmp(global_table[j].table[i].name, name)) {
 				return global_table[j].table[i].type;
@@ -1254,7 +1201,7 @@ char* lookup_type(char name[]) {
 }
 
 char* lookup_attribute(char name[]) {
-	for(int j=0;j<=table_num;j++) {
+	for(int j=table_num;j>=0;j--) {
 		for(int i=0;i<30;i++) {
 			if(!strcmp(global_table[j].table[i].name, name)) {
 				return global_table[j].table[i].attribute;
@@ -1283,11 +1230,11 @@ char* changeto_java_type() {
 }
 
 void gen_print(char type[30]) {
-	fprintf(file, "    getstatic java/lang/System/out Ljava/io/PrintStream;\n");
-	fprintf(file, "    swap\n");
+	fprintf(file, "\tgetstatic java/lang/System/out Ljava/io/PrintStream;\n");
+	fprintf(file, "\tswap\n");
 	if(!strcmp(type, "string")) type = "Ljava/lang/String;";
 	else type = "F";
-	fprintf(file, "    invokevirtual java/io/PrintStream/println(%s)V\n", type);
+	fprintf(file, "\tinvokevirtual java/io/PrintStream/println(%s)V\n", type);
 }
 
 void gen_ID(char value[100]) {
@@ -1299,18 +1246,18 @@ void gen_ID(char value[100]) {
 		if(!strcmp(type, "int")) set_expre_factor(2, -1, value, -1, type);
 		else if(!strcmp(type, "float")) set_expre_factor(2, -1, -1, value, type);
 		*/
-		fprintf(file, "    getstatic compiler_hw3/%s\n", value);	
+		fprintf(file, "\tgetstatic compiler_hw3/%s\n", value);	
 	}
 	// local variable
 	else {
 		char type[30];
 		//set_expre_factor(1, regnum, -1, -1, type);
 		if(!strcmp(type, "string")) {
-			fprintf(file, "    aload %d\n", regnum);
+			fprintf(file, "\taload %d\n", regnum);
 		}
 		else {
 			// float, int, bool
-			fprintf(file, "    fload %d\n", regnum);
+			fprintf(file, "\tfload %d\n", regnum);
 		}
 	}
 }

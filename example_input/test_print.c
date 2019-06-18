@@ -2,7 +2,8 @@ bool v = true;
 int e = 6;
 float r = 0.3;
 string b = "Hi";
-void fun(int a, string f) {
+void fun(int a, string st) {
+	int b = 3;
 	return;
 }
 void main() {
