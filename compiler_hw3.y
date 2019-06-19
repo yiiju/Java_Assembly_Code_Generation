@@ -586,6 +586,15 @@ mul_expression_stat
 	}
 	| mul_expression_stat DIV factor
 	{
+		if((!strcmp($3.type, "float") && $3.f_val == 0) || 
+			(!strcmp($3.type, "int") && $3.i_val == 0)) {
+			// semantic error
+			// Variables of numbers that divided by zero
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Variables of numbers that divided by zero");
+			
+		}
 		fprintf(file, "\tfdiv\n");
 		$$.f_val = -1.0;
 	}
@@ -1255,6 +1264,10 @@ void gen_print(char type[30]) {
 	fprintf(file, "\tgetstatic java/lang/System/out Ljava/io/PrintStream;\n");
 	fprintf(file, "\tswap\n");
 	if(!strcmp(type, "string")) type = "Ljava/lang/String;";
+	else if(!strcmp(type, "int")) {
+		fprintf(file, "f2i\n");
+		type = "I";
+	}
 	else type = "F";
 	fprintf(file, "\tinvokevirtual java/io/PrintStream/println(%s)V\n", type);
 }

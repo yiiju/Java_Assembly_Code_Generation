@@ -8,14 +8,8 @@ void main() {
 	string st = "ss";
 	int g = 3;
 	int b = g++;
-	int t1 = 5 % 3;
-	int t2 = g % 3;
-	int t3 = 5 % g;
-	int t4 = b % g;
-	print(t1);
+	int t2 = g / b;
 	print(t2);
-	print(t3);
-	print(t4);
     return;
 }
 

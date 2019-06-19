@@ -637,13 +637,13 @@ static const yytype_uint16 yyrline[] =
      223,   234,   247,   246,   264,   308,   348,   384,   383,   413,
      420,   430,   440,   453,   457,   461,   465,   472,   482,   491,
      501,   500,   520,   529,   533,   558,   565,   570,   575,   582,
-     587,   592,   625,   632,   644,   656,   668,   680,   695,   702,
-     743,   780,   803,   826,   826,   826,   833,   833,   834,   833,
-     843,   844,   848,   848,   849,   848,   855,   855,   865,   866,
-     877,   878,   879,   880,   881,   882,   886,   893,   900,   906,
-     912,   918,   924,   941,   942,   946,   947,   948,   952,   953,
-     954,   955,   956,   957,   961,   962,   967,   968,   969,   970,
-     971
+     587,   601,   634,   641,   653,   665,   677,   689,   704,   711,
+     752,   789,   812,   835,   835,   835,   842,   842,   843,   842,
+     852,   853,   857,   857,   858,   857,   864,   864,   874,   875,
+     886,   887,   888,   889,   890,   891,   895,   902,   909,   915,
+     921,   927,   933,   950,   951,   955,   956,   957,   961,   962,
+     963,   964,   965,   966,   970,   971,   976,   977,   978,   979,
+     980
 };
 #endif
 
@@ -2064,14 +2064,23 @@ yyreduce:
   case 50:
 #line 588 "compiler_hw3.y" /* yacc.c:1646  */
     {
+		if((!strcmp((yyvsp[0].atom).type, "float") && (yyvsp[0].atom).f_val == 0) || 
+			(!strcmp((yyvsp[0].atom).type, "int") && (yyvsp[0].atom).i_val == 0)) {
+			// semantic error
+			// Variables of numbers that divided by zero
+			error_flag = 1;
+			bzero(sem_error_msg, 100);
+			strcat(sem_error_msg, "Variables of numbers that divided by zero");
+			
+		}
 		fprintf(file, "\tfdiv\n");
 		(yyval.atom).f_val = -1.0;
 	}
-#line 2071 "y.tab.c" /* yacc.c:1646  */
+#line 2080 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 593 "compiler_hw3.y" /* yacc.c:1646  */
+#line 602 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		char type1[30], type2[30];
 		strcpy(type1, (yyvsp[-2].atom).type);
@@ -2104,19 +2113,19 @@ yyreduce:
 		}
 		(yyval.atom).f_val = -1.0;
 	}
-#line 2108 "y.tab.c" /* yacc.c:1646  */
+#line 2117 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 626 "compiler_hw3.y" /* yacc.c:1646  */
+#line 635 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		(yyval.atom) = (yyvsp[0].atom);
 	}
-#line 2116 "y.tab.c" /* yacc.c:1646  */
+#line 2125 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 633 "compiler_hw3.y" /* yacc.c:1646  */
+#line 642 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		// local declaration
 		if(table_num != 0) {
@@ -2128,11 +2137,11 @@ yyreduce:
 		(yyval.atom).id_reg = -1;
 		strcpy((yyval.atom).type, "int");
 	}
-#line 2132 "y.tab.c" /* yacc.c:1646  */
+#line 2141 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 645 "compiler_hw3.y" /* yacc.c:1646  */
+#line 654 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		// local declaration
 		if(table_num != 0) {
@@ -2144,11 +2153,11 @@ yyreduce:
 		(yyval.atom).id_reg = -1;
 		strcpy((yyval.atom).type, "float");
 	}
-#line 2148 "y.tab.c" /* yacc.c:1646  */
+#line 2157 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 657 "compiler_hw3.y" /* yacc.c:1646  */
+#line 666 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		// local declaration
 		if(table_num != 0) {
@@ -2160,11 +2169,11 @@ yyreduce:
 		(yyval.atom).id_reg = -1;
 		strcpy((yyval.atom).type, "int");
 	}
-#line 2164 "y.tab.c" /* yacc.c:1646  */
+#line 2173 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 669 "compiler_hw3.y" /* yacc.c:1646  */
+#line 678 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		// local declaration
 		if(table_num != 0) {
@@ -2176,11 +2185,11 @@ yyreduce:
 		(yyval.atom).id_reg = -1;
 		strcpy((yyval.atom).type, "float");
 	}
-#line 2180 "y.tab.c" /* yacc.c:1646  */
+#line 2189 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 681 "compiler_hw3.y" /* yacc.c:1646  */
+#line 690 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[0].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2195,22 +2204,22 @@ yyreduce:
 			strcpy((yyval.atom).type, lookup_type((yyvsp[0].atom).string_val));
 		}
 	}
-#line 2199 "y.tab.c" /* yacc.c:1646  */
+#line 2208 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 696 "compiler_hw3.y" /* yacc.c:1646  */
+#line 705 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		// set_expre_factor(0, -1, -1, -$2.i_val, "float");
 		// assign to factor
 		(yyval.atom).f_val = -1.0;
 		//strcpy($$.type, lookup_type($2.string_val));
 	}
-#line 2210 "y.tab.c" /* yacc.c:1646  */
+#line 2219 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 703 "compiler_hw3.y" /* yacc.c:1646  */
+#line 712 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[-1].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2251,11 +2260,11 @@ yyreduce:
 			strcpy((yyval.atom).type, lookup_type((yyvsp[-1].atom).string_val));
 		}
 	}
-#line 2255 "y.tab.c" /* yacc.c:1646  */
+#line 2264 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 60:
-#line 744 "compiler_hw3.y" /* yacc.c:1646  */
+#line 753 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[0].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2292,11 +2301,11 @@ yyreduce:
 			strcpy((yyval.atom).type, lookup_type((yyvsp[0].atom).string_val));
 		}
 	}
-#line 2296 "y.tab.c" /* yacc.c:1646  */
+#line 2305 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 61:
-#line 781 "compiler_hw3.y" /* yacc.c:1646  */
+#line 790 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[-3].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2319,11 +2328,11 @@ yyreduce:
 		// assign function return to factor
 		(yyval.atom).f_val = -1.0;
 	}
-#line 2323 "y.tab.c" /* yacc.c:1646  */
+#line 2332 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 62:
-#line 804 "compiler_hw3.y" /* yacc.c:1646  */
+#line 813 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[-2].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2343,156 +2352,156 @@ yyreduce:
 		// assign function return to factor
 		(yyval.atom).f_val = -1.0;
 	}
-#line 2347 "y.tab.c" /* yacc.c:1646  */
+#line 2356 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 63:
-#line 826 "compiler_hw3.y" /* yacc.c:1646  */
+#line 835 "compiler_hw3.y" /* yacc.c:1646  */
     { expre_site = 0; }
-#line 2353 "y.tab.c" /* yacc.c:1646  */
+#line 2362 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 64:
-#line 826 "compiler_hw3.y" /* yacc.c:1646  */
+#line 835 "compiler_hw3.y" /* yacc.c:1646  */
     { table_num++; create_symbol(); }
-#line 2359 "y.tab.c" /* yacc.c:1646  */
+#line 2368 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 65:
-#line 827 "compiler_hw3.y" /* yacc.c:1646  */
+#line 836 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
 	}
-#line 2370 "y.tab.c" /* yacc.c:1646  */
+#line 2379 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 66:
-#line 833 "compiler_hw3.y" /* yacc.c:1646  */
+#line 842 "compiler_hw3.y" /* yacc.c:1646  */
     { expre_site = 0; }
-#line 2376 "y.tab.c" /* yacc.c:1646  */
+#line 2385 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 67:
-#line 833 "compiler_hw3.y" /* yacc.c:1646  */
+#line 842 "compiler_hw3.y" /* yacc.c:1646  */
     { table_num++; create_symbol(); }
-#line 2382 "y.tab.c" /* yacc.c:1646  */
+#line 2391 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 834 "compiler_hw3.y" /* yacc.c:1646  */
+#line 843 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
 	}
-#line 2393 "y.tab.c" /* yacc.c:1646  */
+#line 2402 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 848 "compiler_hw3.y" /* yacc.c:1646  */
+#line 857 "compiler_hw3.y" /* yacc.c:1646  */
     { expre_site = 0; }
-#line 2399 "y.tab.c" /* yacc.c:1646  */
+#line 2408 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 848 "compiler_hw3.y" /* yacc.c:1646  */
+#line 857 "compiler_hw3.y" /* yacc.c:1646  */
     { table_num++; create_symbol(); }
-#line 2405 "y.tab.c" /* yacc.c:1646  */
+#line 2414 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 849 "compiler_hw3.y" /* yacc.c:1646  */
+#line 858 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
 	}
-#line 2416 "y.tab.c" /* yacc.c:1646  */
+#line 2425 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 855 "compiler_hw3.y" /* yacc.c:1646  */
+#line 864 "compiler_hw3.y" /* yacc.c:1646  */
     { table_num++; create_symbol(); }
-#line 2422 "y.tab.c" /* yacc.c:1646  */
+#line 2431 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 856 "compiler_hw3.y" /* yacc.c:1646  */
+#line 865 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
 	}
-#line 2433 "y.tab.c" /* yacc.c:1646  */
+#line 2442 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 887 "compiler_hw3.y" /* yacc.c:1646  */
+#line 896 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		gen_print((yyvsp[0].atom).type);
 	}
-#line 2441 "y.tab.c" /* yacc.c:1646  */
+#line 2450 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 894 "compiler_hw3.y" /* yacc.c:1646  */
+#line 903 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		char *strconst = strtok((yyvsp[-2].atom).string_val, "\"");
 		fprintf(file, "\tldc %s\n", strconst);
 		(yyval.atom) = (yyvsp[-2].atom);
 		strcpy((yyval.atom).type, "string");
 	}
-#line 2452 "y.tab.c" /* yacc.c:1646  */
+#line 2461 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 901 "compiler_hw3.y" /* yacc.c:1646  */
+#line 910 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		fprintf(file, "\tldc %f", (yyvsp[-2].atom).f_val);
 		(yyval.atom) = (yyvsp[-2].atom);
 		strcpy((yyval.atom).type, "int");
 	}
-#line 2462 "y.tab.c" /* yacc.c:1646  */
+#line 2471 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 907 "compiler_hw3.y" /* yacc.c:1646  */
+#line 916 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		fprintf(file, "\tldc %f", (yyvsp[-2].atom).f_val);
 		(yyval.atom) = (yyvsp[-2].atom);
 		strcpy((yyval.atom).type, "float");
 	}
-#line 2472 "y.tab.c" /* yacc.c:1646  */
+#line 2481 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 913 "compiler_hw3.y" /* yacc.c:1646  */
+#line 922 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		fprintf(file, "\tldc %f", (yyvsp[-2].atom).f_val);
 		(yyval.atom) = (yyvsp[-2].atom);
 		strcpy((yyval.atom).type, "int");
 	}
-#line 2482 "y.tab.c" /* yacc.c:1646  */
+#line 2491 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 919 "compiler_hw3.y" /* yacc.c:1646  */
+#line 928 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		fprintf(file, "\tldc %f", (yyvsp[-2].atom).f_val);
 		(yyval.atom) = (yyvsp[-2].atom);
 		strcpy((yyval.atom).type, "float");
 	}
-#line 2492 "y.tab.c" /* yacc.c:1646  */
+#line 2501 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 92:
-#line 925 "compiler_hw3.y" /* yacc.c:1646  */
+#line 934 "compiler_hw3.y" /* yacc.c:1646  */
     {
 		if(lookup_symbol((yyvsp[-2].atom).string_val, "semantic") == -1) {
 			error_flag = 1;
@@ -2506,11 +2515,11 @@ yyreduce:
 			strcpy((yyval.atom).type, lookup_type((yyvsp[-2].atom).string_val));
 		}
 	}
-#line 2510 "y.tab.c" /* yacc.c:1646  */
+#line 2519 "y.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2514 "y.tab.c" /* yacc.c:1646  */
+#line 2523 "y.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2738,7 +2747,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 974 "compiler_hw3.y" /* yacc.c:1906  */
+#line 983 "compiler_hw3.y" /* yacc.c:1906  */
 
 
 /* C code section */
@@ -3023,6 +3032,10 @@ void gen_print(char type[30]) {
 	fprintf(file, "\tgetstatic java/lang/System/out Ljava/io/PrintStream;\n");
 	fprintf(file, "\tswap\n");
 	if(!strcmp(type, "string")) type = "Ljava/lang/String;";
+	else if(!strcmp(type, "int")) {
+		fprintf(file, "f2i\n");
+		type = "I";
+	}
 	else type = "F";
 	fprintf(file, "\tinvokevirtual java/io/PrintStream/println(%s)V\n", type);
 }

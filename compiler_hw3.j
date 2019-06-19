@@ -25,57 +25,14 @@
 	ldc 1.0
 	fsub
 	fstore 4
-	ldc 5.000000
-	ldc 3.000000
-	fstore 49
-	f2i
-	fload 49
-	f2i
-	irem
-i2f
-	fstore 5
 	fload 3
-	ldc 3.000000
-	fstore 49
-	f2i
-	fload 49
-	f2i
-	irem
-i2f
-	fstore 6
-	ldc 5.000000
-	fload 3
-	fstore 3
-	f2i
-	fload 3
-	f2i
-	irem
-i2f
-	fstore 7
 	fload 4
-	fload 3
-	fstore 3
-	f2i
-	fload 3
-	f2i
-	irem
-i2f
-	fstore 8
+	fdiv
+	fstore 5
 	fload 5
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
-	invokevirtual java/io/PrintStream/println(F)V
-	fload 6
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(F)V
-	fload 7
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(F)V
-	fload 8
-	getstatic java/lang/System/out Ljava/io/PrintStream;
-	swap
-	invokevirtual java/io/PrintStream/println(F)V
+f2i
+	invokevirtual java/io/PrintStream/println(I)V
 	return
 .end method
