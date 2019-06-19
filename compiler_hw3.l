@@ -15,6 +15,8 @@
 
 	/* This macro is used to record code line */
 	#define CONCAT { strncat(buf, yytext, BUF_SIZE - strlen(buf) - 1); }
+
+	int while_label = 0;
 %}
 
 /* Define regular expression label */
@@ -77,7 +79,7 @@ id			{letter}+({letter}|{digit})*
 "if"		{ yylval.atom.string_val = yytext; CONCAT; return IF; }
 "else"		{ yylval.atom.string_val = yytext; CONCAT; return ELSE; }
 "for"		{ yylval.atom.string_val = yytext; CONCAT; return FOR; }
-"while"		{ yylval.atom.string_val = yytext; CONCAT; return WHILE; }
+"while"		{ yylval.atom.string_val = yytext; yylval.atom.i_val = while_label++;  CONCAT; return WHILE; }
 
  /* Declaration Keywords */
 "void"		{ CONCAT; yylval.atom.string_val = "void"; return VOID; }

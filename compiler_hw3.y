@@ -87,6 +87,8 @@ void gen_arith_post(char[], char[]);
 void gen_arith_pre(char[], char[]);
 void gen_asgn(char[], char[]);
 
+char* create_label_name(char[], int);
+
 %}
 
 /* Use variable or self-defined structure to represent
@@ -106,7 +108,6 @@ void gen_asgn(char[], char[]);
 %token ADD SUB MUL DIV MOD
 %token AND OR NOT
 %token PRINT 
-%token IF ELSE FOR WHILE
 %token RET
 %token START_COMMENT END_COMMENT CPLUS_COMMENT
 
@@ -123,6 +124,7 @@ void gen_asgn(char[], char[]);
 %token <atom> SEMICOLON
 %token <atom> LB RB LCB RCB LSB RSB COMMA
 %token <atom> ASGN ADDASGN SUBASGN MULASGN DIVASGN MODASGN
+%token <atom> IF ELSE FOR WHILE
 
 /* Nonterminal with return, which need to sepcify type */
 %type <atom> type
@@ -134,6 +136,7 @@ void gen_asgn(char[], char[]);
 %type <atom> print_func print_type
 %type <atom> expression
 %type <atom> asgn
+%type <atom> iteration_stat
 
 /* Yacc will start at this nonterminal */
 %start program
@@ -603,6 +606,9 @@ expression
 expression_stat
 	: expression_stat relational add_expression_stat
 	{
+		fprintf(file, "\tfsub\n");
+		fprintf(file, "\tf2i\n");
+		$$.string_val = $2.string_val;
 		int flag = 0;
 		if(!strcmp($2.string_val, ">")) {
 			if($1.f_val > $3.f_val) flag = 1;
@@ -838,12 +844,58 @@ factor
 ;
 
 iteration_stat
-	: WHILE LB expression_stat RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
+	: WHILE LB 
+	{
+		char label_name[30];
+		strcpy(label_name, create_label_name("BEGIN_WHILE_", $1.i_val));
+		fprintf(file, "%s:\n", label_name);
+	}
+	expression_stat RB 
+	{
+		char exit_label_name[30], true_label_name[30];
+		strcpy(true_label_name, create_label_name("TRUE_WHILE_", $1.i_val));
+		if(!strcmp($4.string_val, ">")) {
+			fprintf(file, "\tifgt %s\n", true_label_name);
+		}
+		else if(!strcmp($4.string_val, "<")) {
+			fprintf(file, "\tiflt %s\n", true_label_name);
+		}
+		else if(!strcmp($4.string_val, ">=")) {
+			fprintf(file, "\tifge %s\n", true_label_name);
+		}
+		else if(!strcmp($4.string_val, "<=")) {
+			fprintf(file, "\tifle %s\n", true_label_name);
+		}
+		else if(!strcmp($4.string_val, "==")) {
+			fprintf(file, "\tifeq %s\n", true_label_name);
+		}
+		else if(!strcmp($4.string_val, "!=")) {
+			fprintf(file, "\tifne %s\n", true_label_name);
+		}
+		strcpy(exit_label_name, create_label_name("EXIT_WHILE_", $1.i_val));
+		fprintf(file, "\tgoto %s\n", exit_label_name);
+	}
+	LCB 
+	{ 
+		table_num++; 
+		create_symbol(); 
+	
+		char label_name[30];
+		strcpy(label_name, create_label_name("TRUE_WHILE_", $1.i_val));
+		fprintf(file, "%s:\n", label_name);
+	} 
+	func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
+
+		char begin_label_name[30], label_name[30];
+		strcpy(begin_label_name, create_label_name("BEGIN_WHILE_", $1.i_val));
+		fprintf(file, "\tgoto %s\n", begin_label_name);
+		strcpy(label_name, create_label_name("EXIT_WHILE_", $1.i_val));
+		fprintf(file, "%s:\n", label_name);
 	}
 	| IF LB expression_stat RB LCB { table_num++; create_symbol(); }  func_mul_stat RCB
 	{
@@ -901,7 +953,7 @@ print_type
 	: S_CONST RB SEMICOLON
 	{
 		char *strconst = strtok($1.string_val, "\"");
-		fprintf(file, "\tldc %s\n", strconst);
+		fprintf(file, "\tldc \"%s\"\n", strconst);
 		$$ = $1;
 		strcpy($$.type, "string");
 	}
@@ -1013,7 +1065,7 @@ int main(int argc, char** argv)
      
     fprintf(file,   ".class public compiler_hw3\n"
                     ".super java/lang/Object\n");
-	
+
  	yyparse();
 	if(syntax_flag == 1) {
 		printf("%d: %s\n", yylineno, buf);
@@ -1259,7 +1311,6 @@ char* lookup_attribute(char name[]) {
 }
 
 char* changeto_java_type() {
-	printf("debug %s\n", func_para_type);
 	char new_type[100];
 	memset(new_type, '\0', sizeof(new_type));
 	char temp_attr[100];
@@ -1416,4 +1467,14 @@ void gen_asgn(char string[100], char asgn[10]) {
 	else if(!strcmp(asgn, "/=")) {
 		fprintf(file, "\tfdiv\n");
 	}
+}
+
+char* create_label_name(char name[30], int label) {
+	char label_num[10], newname[50];
+	memset(newname, '\0', sizeof(newname));
+	sprintf(label_num, "%d", label);
+	strcat(newname, name);
+	strcat(newname, label_num);
+	char* returnname = newname;
+	return returnname;
 }
