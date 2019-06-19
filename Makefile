@@ -25,7 +25,7 @@ test:
 clean:
 	rm -f *.o ${PARSER} ${OBJECT}
 m:	
-	@./${PARSER} < ./example_input/basic_function.c
+	@./${PARSER} < ./example_input/test_decla.c
 	@echo -e "\n\033[1;33mmain.class output\033[0m"
 	@java -jar jasmin.jar ${FNAME}.j
 	@java ${FNAME} 

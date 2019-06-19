@@ -13,6 +13,7 @@ extern char buf[256];  // Get current code line from lex
 
 FILE *file; // To generate .j file for Jasmin
 
+int has_error = 0;
 void semantic_error(char errormsg[100], int sem_line);
 int error_flag;
 char sem_error_msg[100];
@@ -88,6 +89,9 @@ void gen_arith_pre(char[], char[]);
 void gen_asgn(char[], char[]);
 
 char* create_label_name(char[], int);
+int if_label;
+int if_scope;
+void gen_relation(char[], char[]);
 
 %}
 
@@ -269,7 +273,7 @@ declaration
 					strcpy(type_descriptor,"F");
 					float booltype;
 					if(!strcmp($4.string_val, "true")) booltype = 1.0;
-					else booltype = 0.0;
+					else booltype = 2.0;
     				fprintf(file, ".field public static %s %s = %f\n", $2.string_val, type_descriptor, booltype);
 				}
 				else if(!strcmp($1.string_val, "string")) {
@@ -283,7 +287,7 @@ declaration
 				if(!strcmp($1.string_val, "bool")) {
 					int booltype;
 					if(!strcmp($4.string_val, "true")) booltype = 1.0;
-					else booltype = 0.0;
+					else booltype = 2.0;
 					fprintf(file, "\tldc %d\n", booltype);
 					fprintf(file, "\tistore %d\n", index);
 				}
@@ -448,15 +452,18 @@ func_call
 const
 	: S_CONST
 	{
+		fprintf(file, "\tldc \"%s\"\n", $1.string_val);
 		strcpy($$.type, "string");
 	}
 	| expression_stat
 	| TRUE
 	{
+		fprintf(file, "\tldc 1.0\n");
 		strcpy($$.type, "bool");
 	}
 	| FALSE
 	{
+		fprintf(file, "\tldc 2.0\n");
 		strcpy($$.type, "bool");
 	}
 ;
@@ -503,7 +510,7 @@ expression
 					fprintf(file, "\tf2i\n");
 				}
 				fprintf(file, "\tirem\n");
-				fprintf(file, "i2f\n");
+				fprintf(file, "\ti2f\n");
 			}
 			else {
 				// semantic error
@@ -532,7 +539,7 @@ expression
 			if(!strcmp($1.type, "bool")) {
 				int booltype;
 				if(!strcmp($3.string_val, "true")) booltype = 1.0;
-				else booltype = 0.0;
+				else booltype = 2.0;
 				fprintf(file, "\tldc %d\n", booltype);
 				fprintf(file, "\tfstore %d\n", regnum);
 			}
@@ -553,7 +560,7 @@ expression
 	}
 	| arithmetic_postfix ID SEMICOLON
 	{
-		gen_arith_post($2.string_val, $1.string_val);
+		gen_arith_pre($2.string_val, $1.string_val);
 		if(lookup_symbol($2.string_val, "semantic") != -1) {
 			// assign to factor
 			$$.f_val = -1.0;
@@ -609,27 +616,6 @@ expression_stat
 		fprintf(file, "\tfsub\n");
 		fprintf(file, "\tf2i\n");
 		$$.string_val = $2.string_val;
-		int flag = 0;
-		if(!strcmp($2.string_val, ">")) {
-			if($1.f_val > $3.f_val) flag = 1;
-		}
-		else if(!strcmp($2.string_val, "<")) {
-			if($1.f_val < $3.f_val) flag = 1;
-		}
-		else if(!strcmp($2.string_val, ">=")) {
-			if($1.f_val >= $3.f_val) flag = 1;
-		}
-		else if(!strcmp($2.string_val, "<=")) {
-			if($1.f_val <= $3.f_val) flag = 1;
-		}
-		else if(!strcmp($2.string_val, "==")) {
-			if($1.f_val == $3.f_val) flag = 1;
-		}
-		else if(!strcmp($2.string_val, "!=")) {
-			if($1.f_val != $3.f_val) flag = 1;
-		}
-		if(flag == 1) $$.f_val = 1.0;
-		else $$.f_val = 0.0;
 		strcpy($$.type, "bool");
 	}
 	| add_expression_stat
@@ -791,7 +777,7 @@ factor
 	}
 	| arithmetic_postfix ID
 	{
-		gen_arith_post($2.string_val, $1.string_val);
+		gen_arith_pre($2.string_val, $1.string_val);
 		if(lookup_symbol($2.string_val, "semantic") != -1) {
 			// assign to factor
 			$$.f_val = -1.0;
@@ -854,24 +840,7 @@ iteration_stat
 	{
 		char exit_label_name[30], true_label_name[30];
 		strcpy(true_label_name, create_label_name("TRUE_WHILE_", $1.i_val));
-		if(!strcmp($4.string_val, ">")) {
-			fprintf(file, "\tifgt %s\n", true_label_name);
-		}
-		else if(!strcmp($4.string_val, "<")) {
-			fprintf(file, "\tiflt %s\n", true_label_name);
-		}
-		else if(!strcmp($4.string_val, ">=")) {
-			fprintf(file, "\tifge %s\n", true_label_name);
-		}
-		else if(!strcmp($4.string_val, "<=")) {
-			fprintf(file, "\tifle %s\n", true_label_name);
-		}
-		else if(!strcmp($4.string_val, "==")) {
-			fprintf(file, "\tifeq %s\n", true_label_name);
-		}
-		else if(!strcmp($4.string_val, "!=")) {
-			fprintf(file, "\tifne %s\n", true_label_name);
-		}
+		gen_relation($4.string_val, true_label_name);
 		strcpy(exit_label_name, create_label_name("EXIT_WHILE_", $1.i_val));
 		fprintf(file, "\tgoto %s\n", exit_label_name);
 	}
@@ -897,13 +866,29 @@ iteration_stat
 		strcpy(label_name, create_label_name("EXIT_WHILE_", $1.i_val));
 		fprintf(file, "%s:\n", label_name);
 	}
-	| IF LB expression_stat RB LCB { table_num++; create_symbol(); }  func_mul_stat RCB
+	| IF LB expression_stat RB 
+	{
+		if_scope++;
+		if_label++;
+		char if_label_name[30], else_label_name[30];
+		strcpy(if_label_name, create_label_name("IF_", if_label));
+		gen_relation($3.string_val, if_label_name);
+	}
+	LCB { table_num++; create_symbol(); }  func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
-	} haselse
+		
+		char exit_label_name[30];
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", if_scope));
+		fprintf(file, "\tgoto %s\n", exit_label_name);
+	} haselse {
+		char exit_label_name[30];
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", if_scope));
+		fprintf(file, "%s:\n", exit_label_name);
+	}
 ;
 
 haselse
@@ -912,7 +897,14 @@ haselse
 ;
 
 haselseif
-	: IF LB expression_stat RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
+	: IF LB expression_stat 
+	{
+		if_label++;
+		char else_label_name[30];	
+		strcpy(else_label_name, create_label_name("ELSE_", if_label));
+		gen_relation($3.string_val, else_label_name);
+	}
+	RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
 	{
 		dump_flag = 1; 
 		clear_temp_table();
@@ -929,7 +921,11 @@ haselseif
 ;
 
 moreelseif
-	: ELSE haselseif
+	: ELSE 
+	{
+		if_label++;
+	}
+	haselseif
 	|
 ;
 
@@ -1060,6 +1056,9 @@ int main(int argc, char** argv)
 	create_symbol();
 	init_func_table();
 	register_site = 0;
+	if_scope = -1;
+	if_label = -1;
+	has_error = 0;
 
     file = fopen("compiler_hw3.j","w");
      
@@ -1081,8 +1080,12 @@ int main(int argc, char** argv)
 	}
 
     fclose(file);
-
-    return 0;
+	
+	if(has_error == 1) {
+		remove("./compiler_hw3.j");
+	}
+    
+	return 0;
 }
 
 void yyerror(char *s)
@@ -1092,13 +1095,15 @@ void yyerror(char *s)
 }
 
 void syntax_error(char errormsg[100]) {
-    printf("\n|-----------------------------------------------|\n");
+    has_error = 1;
+	printf("\n|-----------------------------------------------|\n");
     printf("| Error found in line %d: %s\n", yylineno, buf);
     printf("| %s", errormsg);
     printf("\n|-----------------------------------------------|\n\n");
 }
 
 void semantic_error(char errormsg[100], int sem_line) {
+    has_error = 1;
     printf("\n|-----------------------------------------------|\n");
     printf("| Error found in line %d: %s\n", sem_line, buf);
     printf("| %s", errormsg);
@@ -1477,4 +1482,26 @@ char* create_label_name(char name[30], int label) {
 	strcat(newname, label_num);
 	char* returnname = newname;
 	return returnname;
+}
+
+void gen_relation(char asgn[10], char label[30]) {
+	if(!strcmp(asgn, ">")) {
+		fprintf(file, "\tifgt %s\n", label);
+	}
+	else if(!strcmp(asgn, "<")) {
+		fprintf(file, "\tiflt %s\n", label);
+	}
+	else if(!strcmp(asgn, ">=")) {
+		fprintf(file, "\tifge %s\n", label);
+	}
+	else if(!strcmp(asgn, "<=")) {
+		fprintf(file, "\tifle %s\n", label);
+	}
+	else if(!strcmp(asgn, "==")) {
+		fprintf(file, "\tifeq %s\n", label);
+	}
+	else if(!strcmp(asgn, "!=")) {
+		fprintf(file, "\tifne %s\n", label);
+	}
+
 }

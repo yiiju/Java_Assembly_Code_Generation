@@ -1,9 +1,10 @@
 bool v = true;
+bool f = false;
 int e = 6;
 float r = 0.3;
 string b = "Hi";
 int func() {
-	return;
+	return 5;
 }
 bool func2(bool a) {
 	return a;
@@ -17,7 +18,7 @@ void main() {
 	int g = func();
 	bool e = func2(true);
 	string st = "ss";
-	bool y = func3(false, st);
+	int y = func3(false, st);
 	int b = g++;
 	int l = --a;
 	int t = 4 % 2;

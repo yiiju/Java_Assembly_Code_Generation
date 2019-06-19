@@ -24,6 +24,8 @@ void main() {
 	int f = --b;
 	float t2 = g % b;
 	print(g);
+	f = d + 5 + g++;
+	print(f);
     return;
 }
 
