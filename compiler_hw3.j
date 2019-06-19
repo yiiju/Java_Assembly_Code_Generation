@@ -4,35 +4,6 @@
 .field public static e F = 6.000000
 .field public static r F = 0.300000
 .field public static b Ljava/lang/String; = "Hi"
-.method public static fun(F)V
-.limit stack 50
-.limit locals 50
-	ldc 3.000000
-	fstore 3
-	return
-.end method
-.method public static fun2(F)V
-.limit stack 50
-.limit locals 50
-	return
-.end method
-.method public static func3()F
-.limit stack 50
-.limit locals 50
-	ldc 1.400000
-	freturn
-.end method
-.method public static func4(FF)V
-.limit stack 50
-.limit locals 50
-	return
-.end method
-.method public static func5()F
-.limit stack 50
-.limit locals 50
-	ldc 8.300000
-	freturn
-.end method
 .method public static main([Ljava/lang/String;)V
 .limit stack 50
 .limit locals 50
@@ -42,7 +13,67 @@
 	ldc 6.000000
 	fadd
 	fstore 1
-	fload 1
+	ldc "ss"
+	astore 2
+	ldc 3.000000
+	fstore 3
+	fload 3
+	ldc 1.0
+	fadd
+	fstore 3
+	fload 3
+	ldc 1.0
+	fsub
+	fstore 4
+	ldc 5.000000
+	ldc 3.000000
+	fstore 49
+	f2i
+	fload 49
+	f2i
+	irem
+i2f
+	fstore 5
+	fload 3
+	ldc 3.000000
+	fstore 49
+	f2i
+	fload 49
+	f2i
+	irem
+i2f
+	fstore 6
+	ldc 5.000000
+	fload 3
+	fstore 3
+	f2i
+	fload 3
+	f2i
+	irem
+i2f
+	fstore 7
+	fload 4
+	fload 3
+	fstore 3
+	f2i
+	fload 3
+	f2i
+	irem
+i2f
+	fstore 8
+	fload 5
+	getstatic java/lang/System/out Ljava/io/PrintStream;
+	swap
+	invokevirtual java/io/PrintStream/println(F)V
+	fload 6
+	getstatic java/lang/System/out Ljava/io/PrintStream;
+	swap
+	invokevirtual java/io/PrintStream/println(F)V
+	fload 7
+	getstatic java/lang/System/out Ljava/io/PrintStream;
+	swap
+	invokevirtual java/io/PrintStream/println(F)V
+	fload 8
 	getstatic java/lang/System/out Ljava/io/PrintStream;
 	swap
 	invokevirtual java/io/PrintStream/println(F)V

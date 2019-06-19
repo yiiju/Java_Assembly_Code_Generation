@@ -161,9 +161,10 @@ union YYSTYPE
     	double f_val;
     	char* string_val;
 		char type[30];
+		int id_reg;
 	}atom;
 
-#line 167 "y.tab.h" /* yacc.c:1909  */
+#line 168 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

@@ -105,6 +105,7 @@ int get_func_decla();
     	double f_val;
     	char* string_val;
 		char type[30];
+		int id_reg;
 	}atom;
 }
 
@@ -240,6 +241,7 @@ func_end
 			strcat(sem_error_msg, global_table[0].table[check_index.cur_func_index].name);
 		}
 		else set_func_decla(1);
+		$$.string_val = ";";
 	}
 	| LCB 
 	{
@@ -593,8 +595,23 @@ mul_expression_stat
 		strcpy(type1, $1.type);
 		strcpy(type2, $3.type);
 		if(!strcmp(type1, "int") && !strcmp(type2, "int")) {
-
+			// $3 is TOS
+			if($3.id_reg != -1) {
+				// ID
+				fprintf(file, "\tfstore %d\n", $3.id_reg);
+				fprintf(file, "\tf2i\n");
+				fprintf(file, "\tfload %d\n", $3.id_reg);
+				fprintf(file, "\tf2i\n");
+			}
+			else {
+				// constant
+				fprintf(file, "\tfstore 49\n");
+				fprintf(file, "\tf2i\n");
+				fprintf(file, "\tfload 49\n");
+				fprintf(file, "\tf2i\n");
+			}
 			fprintf(file, "\tirem\n");
+			fprintf(file, "i2f\n");
 		}
 		else {
 			// semantic error
@@ -621,6 +638,7 @@ factor
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = (float)$1.i_val;
+		$$.id_reg = -1;
 		strcpy($$.type, "int");
 	}
 	| F_CONST
@@ -632,6 +650,7 @@ factor
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = $1.f_val;
+		$$.id_reg = -1;
 		strcpy($$.type, "float");
 	}
 	| SUB I_CONST
@@ -643,6 +662,7 @@ factor
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = -(float)$2.i_val;
+		$$.id_reg = -1;
 		strcpy($$.type, "int");
 	}
 	| SUB F_CONST
@@ -654,6 +674,7 @@ factor
 		}
 		// assign to factor for checking global declaration
 		$$.f_val = -$2.f_val;
+		$$.id_reg = -1;
 		strcpy($$.type, "float");
 	}
 	| ID
@@ -667,7 +688,7 @@ factor
 		else {
 			gen_ID($1.string_val);
 			// assign to factor
-			$$.f_val = -1.0;
+			$$.id_reg = lookup_register_num($1.string_val);
 			strcpy($$.type, lookup_type($1.string_val));
 		}
 	}
@@ -701,6 +722,7 @@ factor
 					fprintf(file, "\tfadd\n");
 					fprintf(file, "\tfstore %d\n", regnum);
 					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
 					fprintf(file, "\tfsub\n");
 				}
 				else {
@@ -709,6 +731,7 @@ factor
 					fprintf(file, "\tfsub\n");
 					fprintf(file, "\tfstore %d\n", regnum);
 					fprintf(file, "\tfload %d\n", regnum);
+					fprintf(file, "\tldc 1.0\n");
 					fprintf(file, "\tfadd\n");
 				}
 			}
