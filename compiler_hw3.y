@@ -112,10 +112,8 @@ int get_func_decla();
 %token ADD SUB MUL DIV MOD
 %token ASGN ADDASGN SUBASGN MULASGN DIVASGN MODASGN
 %token AND OR NOT
-%token LB RB LCB RCB LSB RSB COMMA
 %token PRINT 
 %token IF ELSE FOR WHILE
-%token SEMICOLON
 %token RET
 %token START_COMMENT END_COMMENT CPLUS_COMMENT
 
@@ -129,11 +127,12 @@ int get_func_decla();
 %token <atom> DEC
 %token <atom> MT LT MTE LTE EQ NE
 %token <atom> ID INT FLOAT BOOL STRING VOID
+%token <atom> SEMICOLON
+%token <atom> LB RB LCB RCB LSB RSB COMMA
 
 /* Nonterminal with return, which need to sepcify type */
 %type <atom> type
-%type <atom> func_end func
-%type <atom> SEMICOLON
+%type <atom> func_end func func_parameter
 %type <atom> initializer
 %type <atom> factor mul_expression_stat add_expression_stat expression_stat arithmetic_postfix
 %type <atom> relational
@@ -178,7 +177,7 @@ return_stat
 ;
 
 func
-	: func_parameter RB 
+	: func_parameter RB
 	{
 		char attr[100];
 		bzero(attr, 100);
@@ -211,14 +210,13 @@ func
 			}
 		}
 	}
-	func_end 
+	func_end
 	{
-	/*
-		if(!strcmp($3.string_val, ";")) {
+		//if(!strcmp($3.string_val, ";")) {
+		if(!strcmp($4.string_val, ";")) {
 			table_num--;
 			func_flag = 1;
 		}
-		*/
 		//else func_flag = 1;
 	}
 	| RB func_end
@@ -384,9 +382,9 @@ declaration_func
 	{ 
 		int has = lookup_symbol($2.string_val, "global"); 
 		int index = lookup_symbol($2.string_val, "insert");
-		check_index.cur_func_index = index;
 		if(has == -1) {
 			// first time
+			check_index.cur_func_index = index;
 			check_index.has = 0;
 			if(index != -1) {
 				insert_symbol($2.string_val, "function", $1.string_val, "", index);
@@ -394,8 +392,9 @@ declaration_func
 		}
 		else {
 			// declare or define before
+			check_index.cur_func_index = has;
 			check_index.has = 1;
-			if(!strcmp($1.string_val, global_table[0].table[has].name)) {
+			if(strcmp($1.string_val, global_table[0].table[has].type)) {
 				// return type not the same
 				error_flag = 1;
 				bzero(sem_error_msg, 100);

@@ -59,42 +59,42 @@ extern int yydebug;
     AND = 269,
     OR = 270,
     NOT = 271,
-    LB = 272,
-    RB = 273,
-    LCB = 274,
-    RCB = 275,
-    LSB = 276,
-    RSB = 277,
-    COMMA = 278,
-    PRINT = 279,
-    IF = 280,
-    ELSE = 281,
-    FOR = 282,
-    WHILE = 283,
-    SEMICOLON = 284,
-    RET = 285,
-    START_COMMENT = 286,
-    END_COMMENT = 287,
-    CPLUS_COMMENT = 288,
-    I_CONST = 289,
-    F_CONST = 290,
-    S_CONST = 291,
-    TRUE = 292,
-    FALSE = 293,
-    INC = 294,
-    DEC = 295,
-    MT = 296,
-    LT = 297,
-    MTE = 298,
-    LTE = 299,
-    EQ = 300,
-    NE = 301,
-    ID = 302,
-    INT = 303,
-    FLOAT = 304,
-    BOOL = 305,
-    STRING = 306,
-    VOID = 307
+    PRINT = 272,
+    IF = 273,
+    ELSE = 274,
+    FOR = 275,
+    WHILE = 276,
+    RET = 277,
+    START_COMMENT = 278,
+    END_COMMENT = 279,
+    CPLUS_COMMENT = 280,
+    I_CONST = 281,
+    F_CONST = 282,
+    S_CONST = 283,
+    TRUE = 284,
+    FALSE = 285,
+    INC = 286,
+    DEC = 287,
+    MT = 288,
+    LT = 289,
+    MTE = 290,
+    LTE = 291,
+    EQ = 292,
+    NE = 293,
+    ID = 294,
+    INT = 295,
+    FLOAT = 296,
+    BOOL = 297,
+    STRING = 298,
+    VOID = 299,
+    SEMICOLON = 300,
+    LB = 301,
+    RB = 302,
+    LCB = 303,
+    RCB = 304,
+    LSB = 305,
+    RSB = 306,
+    COMMA = 307
   };
 #endif
 /* Tokens.  */
@@ -112,42 +112,42 @@ extern int yydebug;
 #define AND 269
 #define OR 270
 #define NOT 271
-#define LB 272
-#define RB 273
-#define LCB 274
-#define RCB 275
-#define LSB 276
-#define RSB 277
-#define COMMA 278
-#define PRINT 279
-#define IF 280
-#define ELSE 281
-#define FOR 282
-#define WHILE 283
-#define SEMICOLON 284
-#define RET 285
-#define START_COMMENT 286
-#define END_COMMENT 287
-#define CPLUS_COMMENT 288
-#define I_CONST 289
-#define F_CONST 290
-#define S_CONST 291
-#define TRUE 292
-#define FALSE 293
-#define INC 294
-#define DEC 295
-#define MT 296
-#define LT 297
-#define MTE 298
-#define LTE 299
-#define EQ 300
-#define NE 301
-#define ID 302
-#define INT 303
-#define FLOAT 304
-#define BOOL 305
-#define STRING 306
-#define VOID 307
+#define PRINT 272
+#define IF 273
+#define ELSE 274
+#define FOR 275
+#define WHILE 276
+#define RET 277
+#define START_COMMENT 278
+#define END_COMMENT 279
+#define CPLUS_COMMENT 280
+#define I_CONST 281
+#define F_CONST 282
+#define S_CONST 283
+#define TRUE 284
+#define FALSE 285
+#define INC 286
+#define DEC 287
+#define MT 288
+#define LT 289
+#define MTE 290
+#define LTE 291
+#define EQ 292
+#define NE 293
+#define ID 294
+#define INT 295
+#define FLOAT 296
+#define BOOL 297
+#define STRING 298
+#define VOID 299
+#define SEMICOLON 300
+#define LB 301
+#define RB 302
+#define LCB 303
+#define RCB 304
+#define LSB 305
+#define RSB 306
+#define COMMA 307
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
