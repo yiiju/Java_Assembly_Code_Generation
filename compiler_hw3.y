@@ -85,7 +85,15 @@ void set_func_decla(int);
 int get_func_decla();
 void gen_arith_post(char[], char[]);
 void gen_arith_pre(char[], char[]);
+struct arith_flag {
+	int flag;
+	char operator[3];
+	int global;
+	int regnum;
+	char name[30];
+}arith_flag;
 void gen_asgn(char[], char[]);
+void gen_load_arith();
 
 char* create_label_name(char[], int);
 void gen_relation(char[], char[]);
@@ -367,6 +375,7 @@ declaration
 			}
 			// local declaration
 			else {
+				gen_load_arith();
 				int regnum = lookup_register_num($2.string_val);
 				if(!strcmp($1.string_val, "string")) {
 					fprintf(file, "\tastore %d\n", regnum);
@@ -528,6 +537,8 @@ expression
 			}
 		}
 		else gen_asgn($1.string_val, $2.string_val);
+		
+		gen_load_arith();
 		int regnum = lookup_register_num($1.string_val);
 		fprintf(file, "\tfstore %d\n", regnum);
 	}
@@ -551,7 +562,8 @@ expression
 				fprintf(file, "\tfstore %d\n", regnum);
 			}
 			else if(!strcmp($1.type, "string")) {
-				fprintf(file, "\tldc \"%s\"\n", $3.string_val);
+				char *strconst = strtok($3.string_val, "\"");
+				fprintf(file, "\tldc \"%s\"\n", strconst);
 				fprintf(file, "\tastore %d\n", regnum);
 			}
 		}
@@ -639,11 +651,13 @@ expression_stat
 add_expression_stat
 	: add_expression_stat ADD mul_expression_stat
 	{
+		gen_load_arith();
 		fprintf(file, "\tfadd\n");
 		$$.f_val = -1.0;
 	}
 	| add_expression_stat SUB mul_expression_stat
 	{
+		gen_load_arith();
 		fprintf(file, "\tfsub\n");
 		$$.f_val = -1.0;
 	}
@@ -656,11 +670,13 @@ add_expression_stat
 mul_expression_stat
 	: mul_expression_stat MUL factor
 	{
+		gen_load_arith();
 		fprintf(file, "\tfmul\n");
 		$$.f_val = -1.0;
 	}
 	| mul_expression_stat DIV factor
 	{
+		gen_load_arith();
 		if((!strcmp($3.type, "float") && $3.f_val == 0) || 
 			(!strcmp($3.type, "int") && $3.i_val == 0)) {
 			// semantic error
@@ -695,7 +711,7 @@ mul_expression_stat
 				fprintf(file, "\tf2i\n");
 			}
 			fprintf(file, "\tirem\n");
-			fprintf(file, "i2f\n");
+			fprintf(file, "\ti2f\n");
 		}
 		else {
 			// semantic error
@@ -1133,6 +1149,11 @@ void init()
 		if_label_table[i] = -1;
 		if_label_stack[i] = 0;
 	}
+	arith_flag.flag = 0;
+	memset(arith_flag.operator, '\0', sizeof(arith_flag.operator));
+	arith_flag.global = -1;
+	arith_flag.regnum = -1;
+	memset(arith_flag.name, '\0', sizeof(arith_flag.name));
 }
 
 void yyerror(char *s)
@@ -1451,7 +1472,12 @@ void gen_arith_post(char string[100], char arith[100]) {
 		int regnum = lookup_register_num(string);
 		// global variable
 		if(regnum == -1) {
-			fprintf(file, "\tgetstatic compiler_hw3/%s\n", string);	
+			fprintf(file, "\tgetstatic compiler_hw3/%s F\n", string);	
+			fprintf(file, "\tldc 1.0\n");
+			fprintf(file, "\tfadd\n");
+			fprintf(file, "\tputstatic compiler_hw3/%s F\n", string);
+			arith_flag.global = 1;
+			strcpy(arith_flag.name, string);
 		}
 		// local variable
 		else {
@@ -1461,20 +1487,28 @@ void gen_arith_post(char string[100], char arith[100]) {
 				fprintf(file, "\tldc 1.0\n");
 				fprintf(file, "\tfadd\n");
 				fprintf(file, "\tfstore %d\n", regnum);
+/*
 				fprintf(file, "\tfload %d\n", regnum);
 				fprintf(file, "\tldc 1.0\n");
 				fprintf(file, "\tfsub\n");
+*/
 			}
 			else {
 				fprintf(file, "\tfload %d\n", regnum);
 				fprintf(file, "\tldc 1.0\n");
 				fprintf(file, "\tfsub\n");
 				fprintf(file, "\tfstore %d\n", regnum);
+/*
 				fprintf(file, "\tfload %d\n", regnum);
 				fprintf(file, "\tldc 1.0\n");
 				fprintf(file, "\tfadd\n");
+			*/
 			}
+			arith_flag.global = 0;
+			arith_flag.regnum = regnum;
 		}
+		arith_flag.flag = 1;
+		strcpy(arith_flag.operator, arith);
 	}
 }
 
@@ -1482,7 +1516,12 @@ void gen_arith_pre(char string[100], char arith[100]) {
 	int regnum = lookup_register_num(string);
 	// global variable
 	if(regnum == -1) {
-		fprintf(file, "\tgetstatic compiler_hw3/%s\n", string);
+		fprintf(file, "\tgetstatic compiler_hw3/%s F\n", string);
+		fprintf(file, "\tldc 1.0\n");
+		fprintf(file, "\tfadd\n");
+		fprintf(file, "\tputstatic compiler_hw3/%s F\n", string); // store back to global
+		arith_flag.global = 1;
+		strcpy(arith_flag.name, string);
 	}
 	// local variable
 	else {
@@ -1492,16 +1531,51 @@ void gen_arith_pre(char string[100], char arith[100]) {
 			fprintf(file, "\tldc 1.0\n");
 			fprintf(file, "\tfadd\n");
 			fprintf(file, "\tfstore %d\n", regnum); // store back to register
-			fprintf(file, "\tfload %d\n", regnum); // put on TOS
+//			fprintf(file, "\tfload %d\n", regnum); // put on TOS
 		}
 		else {
 			fprintf(file, "\tfload %d\n", regnum);
 			fprintf(file, "\tldc 1.0\n");
 			fprintf(file, "\tfsub\n");
 			fprintf(file, "\tfstore %d\n", regnum); // store back to register
-			fprintf(file, "\tfload %d\n", regnum); // put on TOS
+//			fprintf(file, "\tfload %d\n", regnum); // put on TOS
+		}
+		arith_flag.global = 0;
+		arith_flag.regnum = regnum;
+	}
+	arith_flag.flag = 2;
+	strcpy(arith_flag.operator, arith);
+}
+
+void gen_load_arith() {
+	// postfix ++ and --
+	if(arith_flag.flag == 1) {
+		if(arith_flag.global == 0) {
+			//local
+			fprintf(file, "\tfload %d\n", arith_flag.regnum);
+		}
+		else {
+			// global
+			fprintf(file, "\tgetstatic compiler_hw3/%s F", arith_flag.name);
+		}
+		fprintf(file, "\tldc 1.0\n");
+		if(!strcmp(arith_flag.operator, "++")) {
+			fprintf(file, "\tfsub\n");
+		}
+		else fprintf(file, "\tfadd\n");
+	}
+	// prefix ++ and --
+	else if(arith_flag.flag == 2) {
+		if(arith_flag.global == 0) {
+			//local
+			fprintf(file, "\tfload %d\n", arith_flag.regnum);
+		}
+		else {
+			// global
+			fprintf(file, "\tgetstatic compiler_hw3/%s F", arith_flag.name);
 		}
 	}
+	arith_flag.flag = 0;
 }
 
 void gen_asgn(char string[100], char asgn[10]) {
