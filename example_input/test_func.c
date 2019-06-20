@@ -5,6 +5,7 @@ string b = "Hi";
 void fun(int a);
 void fun(int a) {
 	int b = 3;
+	print(a);
 	return;
 }
 void fun2(int a);
@@ -31,6 +32,6 @@ void main() {
 	func5();
 	print(d);
 	func4(d, "hihi");
+	fun(3);
     return;
 }
-

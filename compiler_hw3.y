@@ -63,7 +63,6 @@ struct func_table
 	int flag;
 	char name[100];
 }implement_func_table[30];
-int func_flag;
 
 int lookup_register_num(char[]);
 char* lookup_type(char[]);
@@ -227,14 +226,12 @@ func
 		//if(!strcmp($3.string_val, ";")) {
 		if(!strcmp($4.string_val, ";")) {
 			table_num--;
-			func_flag = 1;
 		}
 	}
 	| RB func_end
 	{
 		if(!strcmp($2.string_val, ";")) {
 			table_num--;
-			func_flag = 1;
 		}
 	}
 ;
@@ -251,6 +248,7 @@ func_end
 		}
 		else set_func_decla(1);
 		$$.string_val = ";";
+		register_site = 0;
 	}
 	| LCB 
 	{
@@ -577,25 +575,30 @@ expression
 		}
 	}
 	| ID LB func_call RB 
-	{ 
+	{
 		if(lookup_symbol($1.string_val, "semantic") == -1) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "Undeclared function ");
 			strcat(sem_error_msg, $1.string_val);
 		}
-		if(strcmp(lookup_attribute($1.string_val), func_para_type)) {
+		else if(strcmp(lookup_attribute($1.string_val), func_para_type)) {
 			error_flag = 1;
 			bzero(sem_error_msg, 100);
 			strcat(sem_error_msg, "function formal parameter is not the same");
 		}
-		char paratype[100];
-		strcpy(paratype, changeto_java_type());
-		char* returntype = lookup_type($1.string_val);
-		if(!strcmp(returntype, "void")) returntype = "V";
-		else returntype = "F";
-		fprintf(file, "\tinvokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
+		else {
+			char paratype[100];
+			strcpy(paratype, changeto_java_type());
+			char* returntype = lookup_type($1.string_val);
+			if(!strcmp(returntype, "void")) returntype = "V";
+			else returntype = "F";
+			fprintf(file, "\tinvokestatic compiler_hw3/%s(%s)%s\n", $1.string_val, paratype, returntype);
+		}
 	} SEMICOLON
+	{
+		memset(func_para_type, '\0', sizeof(func_para_type));
+	}
 	| ID LB RB SEMICOLON
 	{
 		if(lookup_symbol($1.string_val, "semantic") == -1) {
@@ -957,13 +960,6 @@ haselseif
 		// goto EXIT_IF_x
 		strcpy(exit_label_name, create_label_name("EXIT_IF_", tos));
 		fprintf(file, "\tgoto %s\n", exit_label_name);
-		/*
-		// IF_x_x:
-		strcpy(label_name, create_label_name("IF_", tos));
-		strcat(label_name, "_");
-		strcpy(label_name, create_label_name(label_name, if_label_table[tos]));
-		fprintf(file, "%s:\n", label_name);
-		*/
 	}
 ;
 
@@ -1532,7 +1528,6 @@ char* create_label_name(char name[30], int label) {
 	strcat(newname, name);
 	strcat(newname, label_num);
 	char* returnname = newname;
-	printf("debug %s\n",returnname);
 	return returnname;
 }
 
