@@ -89,9 +89,18 @@ void gen_arith_pre(char[], char[]);
 void gen_asgn(char[], char[]);
 
 char* create_label_name(char[], int);
-int if_label;
-int if_scope;
 void gen_relation(char[], char[]);
+
+int if_label;
+#define MAXSTACK 100
+int if_label_stack[MAXSTACK];
+int top;
+void push_if_label_stack(int);
+int pop_if_label_stack();
+int get_top_if_stack();
+int if_label_table[100];
+void gen_relation_inverse(char[], char[]);
+void init();
 
 %}
 
@@ -868,11 +877,13 @@ iteration_stat
 	}
 	| IF LB expression_stat RB 
 	{
-		if_scope++;
 		if_label++;
+		push_if_label_stack(if_label);
 		char if_label_name[30], else_label_name[30];
 		strcpy(if_label_name, create_label_name("IF_", if_label));
-		gen_relation($3.string_val, if_label_name);
+		strcat(if_label_name, "_");
+		strcpy(if_label_name, create_label_name(if_label_name, ++if_label_table[if_label]));
+		gen_relation_inverse($3.string_val, if_label_name);
 	}
 	LCB { table_num++; create_symbol(); }  func_mul_stat RCB
 	{
@@ -881,13 +892,22 @@ iteration_stat
 		fill_temp_table();
 		table_num--;
 		
-		char exit_label_name[30];
-		strcpy(exit_label_name, create_label_name("EXIT_IF_", if_scope));
+		char exit_label_name[30], label_name[30];
+		int tos = get_top_if_stack();
+		// goto EXIT_IF_x
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", tos));
 		fprintf(file, "\tgoto %s\n", exit_label_name);
+		// IF_x_x:
+		strcpy(label_name, create_label_name("IF_", tos));
+		strcat(label_name, "_");
+		strcpy(label_name, create_label_name(label_name, if_label_table[tos]));
+		fprintf(file, "%s:\n", label_name);
 	} haselse {
 		char exit_label_name[30];
-		strcpy(exit_label_name, create_label_name("EXIT_IF_", if_scope));
+		int tos = get_top_if_stack();
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", tos));
 		fprintf(file, "%s:\n", exit_label_name);
+		pop_if_label_stack();
 	}
 ;
 
@@ -899,10 +919,12 @@ haselse
 haselseif
 	: IF LB expression_stat 
 	{
-		if_label++;
-		char else_label_name[30];	
-		strcpy(else_label_name, create_label_name("ELSE_", if_label));
-		gen_relation($3.string_val, else_label_name);
+		char label_name[30];
+		int tos = get_top_if_stack();
+		strcpy(label_name, create_label_name("IF_", tos));
+		strcat(label_name, "_");
+		strcpy(label_name, create_label_name(label_name, ++if_label_table[tos]));
+		gen_relation_inverse($3.string_val, label_name);
 	}
 	RB LCB { table_num++; create_symbol(); } func_mul_stat RCB
 	{
@@ -910,6 +932,18 @@ haselseif
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
+
+		char exit_label_name[30], label_name[30];
+		int tos = get_top_if_stack();
+		// goto EXIT_IF_x
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", tos));
+		fprintf(file, "\tgoto %s\n", exit_label_name);
+		// IF_x_x:
+		strcpy(label_name, create_label_name("IF_", tos));
+		strcat(label_name, "_");
+		strcpy(label_name, create_label_name(label_name, if_label_table[tos]));
+		fprintf(file, "%s:\n", label_name);
+
 	} moreelseif
 	| LCB { table_num++; create_symbol(); } func_mul_stat RCB
 	{
@@ -917,15 +951,24 @@ haselseif
 		clear_temp_table();
 		fill_temp_table();
 		table_num--;
+
+		char exit_label_name[30], label_name[30];
+		int tos = get_top_if_stack();
+		// goto EXIT_IF_x
+		strcpy(exit_label_name, create_label_name("EXIT_IF_", tos));
+		fprintf(file, "\tgoto %s\n", exit_label_name);
+		/*
+		// IF_x_x:
+		strcpy(label_name, create_label_name("IF_", tos));
+		strcat(label_name, "_");
+		strcpy(label_name, create_label_name(label_name, if_label_table[tos]));
+		fprintf(file, "%s:\n", label_name);
+		*/
 	}
 ;
 
 moreelseif
-	: ELSE 
-	{
-		if_label++;
-	}
-	haselseif
+	: ELSE haselseif
 	|
 ;
 
@@ -955,7 +998,7 @@ print_type
 	}
 	| I_CONST RB SEMICOLON
 	{
-		fprintf(file, "\tldc %f", $1.f_val);
+		fprintf(file, "\tldc %f\n", (float)$1.i_val);
 		$$ = $1;
 		strcpy($$.type, "int");
 	}
@@ -967,13 +1010,13 @@ print_type
 	}
 	| SUB I_CONST RB SEMICOLON
 	{
-		fprintf(file, "\tldc %f", $2.f_val);
+		fprintf(file, "\tldc -%f", (float)$2.i_val);
 		$$ = $2;
 		strcpy($$.type, "int");
 	}
 	| SUB F_CONST RB SEMICOLON
 	{
-		fprintf(file, "\tldc %f", $2.f_val);
+		fprintf(file, "\tldc -%f", $2.f_val);
 		$$ = $2;
 		strcpy($$.type, "float");
 	}
@@ -1054,11 +1097,7 @@ int main(int argc, char** argv)
 	
 	table_num = 0;
 	create_symbol();
-	init_func_table();
-	register_site = 0;
-	if_scope = -1;
-	if_label = -1;
-	has_error = 0;
+	init();
 
     file = fopen("compiler_hw3.j","w");
      
@@ -1086,6 +1125,18 @@ int main(int argc, char** argv)
 	}
     
 	return 0;
+}
+
+void init()
+{
+	init_func_table();
+	register_site = 0;
+	has_error = 0;
+	if_label = -1;
+	for(int i=0;i<100;i++) {
+		if_label_table[i] = -1;
+		if_label_stack[i] = 0;
+	}
 }
 
 void yyerror(char *s)
@@ -1481,6 +1532,7 @@ char* create_label_name(char name[30], int label) {
 	strcat(newname, name);
 	strcat(newname, label_num);
 	char* returnname = newname;
+	printf("debug %s\n",returnname);
 	return returnname;
 }
 
@@ -1503,5 +1555,48 @@ void gen_relation(char asgn[10], char label[30]) {
 	else if(!strcmp(asgn, "!=")) {
 		fprintf(file, "\tifne %s\n", label);
 	}
+}
 
+void gen_relation_inverse(char asgn[10], char label[30]) {
+	if(!strcmp(asgn, ">")) {
+		fprintf(file, "\tifle %s\n", label);
+	}
+	else if(!strcmp(asgn, "<")) {
+		fprintf(file, "\tifge %s\n", label);
+	}
+	else if(!strcmp(asgn, ">=")) {
+		fprintf(file, "\tiflt %s\n", label);
+	}
+	else if(!strcmp(asgn, "<=")) {
+		fprintf(file, "\tifgt %s\n", label);
+	}
+	else if(!strcmp(asgn, "==")) {
+		fprintf(file, "\tifne %s\n", label);
+	}
+	else if(!strcmp(asgn, "!=")) {
+		fprintf(file, "\tifeq %s\n", label);
+	}
+}
+
+void push_if_label_stack(int label) {
+	if(top >= MAXSTACK) {
+		printf("If_label_stack is full\n");	
+	}
+	else {
+		top++;
+		if_label_stack[top] = label;
+	}
+}
+
+int pop_if_label_stack() {
+	int label;
+	label = if_label_stack[top];
+	top--;
+	return label; 
+}
+
+int get_top_if_stack() {
+	int label;
+	label = if_label_stack[top];
+	return label;
 }
