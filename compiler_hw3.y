@@ -576,6 +576,7 @@ expression
 			$$.f_val = -1.0;
 			strcpy($$.type, lookup_type($1.string_val));
 		}
+		arith_flag.flag = 0;
 	}
 	| arithmetic_postfix ID SEMICOLON
 	{
@@ -585,6 +586,7 @@ expression
 			$$.f_val = -1.0;
 			strcpy($$.type, lookup_type($2.string_val));
 		}
+		arith_flag.flag = 0;
 	}
 	| ID LB func_call RB 
 	{

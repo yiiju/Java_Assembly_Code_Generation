@@ -17,7 +17,7 @@ y.tab.c:
 	@yacc ${YFLAG} ${FNAME}.y
 
 test:
-	@./${PARSER} < ./example_input/basic_declaration.c
+	@./${PARSER} < ./example_input/basic_function.c
 	@echo -e "\n\033[1;33mmain.class output\033[0m"
 	@java -jar jasmin.jar ${FNAME}.j
 	@java ${FNAME} 
@@ -25,7 +25,7 @@ test:
 clean:
 	rm -f *.o ${PARSER} ${OBJECT}
 m:	
-	@./${PARSER} < ./example_input/test_arith.c
+	@./${PARSER} < ./example_input/test_func.c
 	@echo -e "\n\033[1;33mmain.class output\033[0m"
 	@java -jar jasmin.jar ${FNAME}.j
 	@java ${FNAME} 
