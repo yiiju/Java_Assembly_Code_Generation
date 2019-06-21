@@ -1018,7 +1018,7 @@ print_type
 	}
 	| F_CONST RB SEMICOLON
 	{
-		fprintf(file, "\tldc %f", $1.f_val);
+		fprintf(file, "\tldc %f\n", $1.f_val);
 		$$ = $1;
 		strcpy($$.type, "float");
 	}
